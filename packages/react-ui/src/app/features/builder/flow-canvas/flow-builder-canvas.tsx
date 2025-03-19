@@ -1,4 +1,4 @@
-import { getNodesBounds } from '@xyflow/react';
+import { getNodesBounds, useReactFlow } from '@xyflow/react';
 import React from 'react';
 
 import { FLOW_CANVAS_Y_OFFESET } from '@/app/constants/flow-canvas';
@@ -28,11 +28,19 @@ const nodeTypes = {
   loopPlaceholder: LoopStepPlaceHolder,
 };
 const FlowBuilderCanvas = React.memo(() => {
+  const { getNodes } = useReactFlow();
   const [allowCanvasPanning, graph, graphHeight] = useBuilderStateContext(
     (state) => {
-      const graph = flowCanvasUtils.convertFlowVersionToGraph(
-        state.flowVersion,
-      );
+      const previousNodes = getNodes();
+      let graph = flowCanvasUtils.convertFlowVersionToGraph(state.flowVersion);
+      graph.nodes = graph.nodes.map((node) => {
+        const previousNode = previousNodes.find((n) => n.id === node.id);
+
+        if (previousNode) {
+          node.selected = previousNode.selected;
+        }
+        return node;
+      });
       return [state.allowCanvasPanning, graph, getNodesBounds(graph.nodes)];
     },
   );
