@@ -24,7 +24,7 @@ Describe what actually happened.
 Please add screenshots and logs wherever applicable
 
 ## Your environment (OS, browser, version, etc.).
-Elaborate about yor specific setup which adds more context to the issue
+Elaborate about your specific setup which adds more context to the issue
 
 ## Additional Context
 Add any other context or screenshots about the issue here.
