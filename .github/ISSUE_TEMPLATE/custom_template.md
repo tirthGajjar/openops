@@ -1,3 +1,10 @@
+---
+name: "General Issue"
+about: "Describe your issue here"
+title: "[Issue]: "
+labels: ["needs-triage"]
+assignees: ""
+---
 
 ## Description
 Provide a clear and concise description of the issue.
