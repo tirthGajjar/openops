@@ -31,6 +31,22 @@ RUN <<-```
     dnf -y clean all && rm -rf /var/cache
 ```
 
+ENV CLOUDSDK_CONFIG="/tmp/gcloud"
+RUN <<-```
+    set -ex
+    dnf install -y gnupg unzip libstdc++ binutils python3
+
+    curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-516.0.0-linux-x86_64.tar.gz -o /tmp/gcloud.tar.gz
+    mkdir -p /opt && tar -C /opt -xf /tmp/gcloud.tar.gz
+    /opt/google-cloud-sdk/install.sh --quiet
+
+    chmod -R +x /opt/google-cloud-sdk/bin/
+    ln -s /opt/google-cloud-sdk/bin/gcloud /usr/bin/gcloud
+
+    rm /tmp/gcloud.tar.gz
+    dnf -y clean all && rm -rf /var/cache
+```
+ENV PATH="/opt/google-cloud-sdk/bin:$PATH"
 
 RUN <<-```
     set -ex

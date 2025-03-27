@@ -2,8 +2,9 @@ import { Action, ActionType, Trigger, TriggerType } from '@openops/shared';
 import type { StoryObj } from '@storybook/react';
 import { getNodesBounds } from '@xyflow/react';
 import React, { useMemo } from 'react';
-import { CanvasContextProvider } from '../../components/flow-canvas/canvas-context';
+import { ReadonlyCanvasProvider } from '../../components/flow-canvas/canvas-context';
 import { CanvasControls } from '../../components/flow-canvas/canvas-controls';
+import { ClipboardContextProvider } from '../../components/flow-canvas/clipboard-context';
 import { ReturnLoopedgeButton } from '../../components/flow-canvas/edges/return-loop-edge';
 import {
   FlowCanvas,
@@ -75,16 +76,18 @@ const FlowCanvasStory = (args: FlowCanvasProps) => {
   return (
     <div className="w-full h-[100vh] relative">
       <TemplateCanvasProvider template={template}>
-        <CanvasContextProvider>
-          <TooltipProvider>
-            <FlowCanvas {...args} graph={graph}>
-              <BelowFlowWidget
-                graphHeight={graphHeight.height}
-              ></BelowFlowWidget>
-              <CanvasControls />
-            </FlowCanvas>
-          </TooltipProvider>
-        </CanvasContextProvider>
+        <ClipboardContextProvider>
+          <ReadonlyCanvasProvider>
+            <TooltipProvider>
+              <FlowCanvas {...args} graph={graph}>
+                <BelowFlowWidget
+                  graphHeight={graphHeight.height}
+                ></BelowFlowWidget>
+                <CanvasControls />
+              </FlowCanvas>
+            </TooltipProvider>
+          </ReadonlyCanvasProvider>
+        </ClipboardContextProvider>
       </TemplateCanvasProvider>
     </div>
   );

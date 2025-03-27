@@ -1,15 +1,25 @@
+import { FlowVersion } from '@openops/shared';
 import '@testing-library/jest-dom';
 import { render } from '@testing-library/react';
 import { useKeyPress } from '@xyflow/react';
 import React from 'react';
-import { CanvasContextProvider, useCanvasContext } from './canvas-context';
+import { InteractiveContextProvider, useCanvasContext } from './canvas-context';
 import { SHIFT_KEY, SPACE_KEY } from './constants';
 
 // Mock the useKeyPress hook
 jest.mock('@xyflow/react', () => ({
   useKeyPress: jest.fn(),
   useStoreApi: jest.fn(() => ({
-    getState: jest.fn(),
+    getState: jest.fn().mockReturnValue({
+      setNodes: jest.fn(),
+      setEdges: jest.fn(),
+      nodes: [
+        {
+          id: 'step_1',
+          selected: true,
+        },
+      ],
+    }),
   })),
 }));
 
@@ -17,13 +27,22 @@ jest.mock('lodash-es', () => ({
   cloneDeep: jest.fn(),
 }));
 
+jest.mock('./clipboard-context', () => ({
+  useClipboardContext: () => ({
+    actionToPaste: jest.fn(),
+    fetchClipboardOperations: () => jest.fn(),
+  }),
+}));
+
+const mockFlowVersion = {} as FlowVersion;
+
 // Test component to consume the context
 const TestComponent = () => {
   const { panningMode } = useCanvasContext();
   return <div data-testid="panning-mode">{panningMode}</div>;
 };
 
-describe('CanvasContextProvider', () => {
+describe('InteractiveContextProvider', () => {
   const useKeyPressMock = useKeyPress as jest.Mock;
 
   afterEach(() => {
@@ -34,9 +53,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockReturnValue(false); // Neither space nor shift pressed
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('grab');
@@ -46,9 +69,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockImplementation((key: string) => key === SPACE_KEY);
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('grab');
@@ -58,9 +85,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockImplementation((key: string) => key === SHIFT_KEY);
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('pan');
@@ -70,9 +101,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockReturnValue(true); // Simulate both keys pressed
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('grab');
@@ -92,9 +127,13 @@ describe('CanvasContextProvider', () => {
     };
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <ComponentWithSetter />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('pan');
@@ -104,9 +143,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockImplementation((key: string) => key === SHIFT_KEY);
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('pan');
@@ -116,9 +159,13 @@ describe('CanvasContextProvider', () => {
     useKeyPressMock.mockImplementation((key: string) => key === SPACE_KEY);
 
     const { getByTestId } = render(
-      <CanvasContextProvider>
+      <InteractiveContextProvider
+        selectedStep={'step_1'}
+        clearSelectedStep={() => {}}
+        flowVersion={mockFlowVersion}
+      >
         <TestComponent />
-      </CanvasContextProvider>,
+      </InteractiveContextProvider>,
     );
 
     expect(getByTestId('panning-mode')).toHaveTextContent('grab');

@@ -1,3 +1,4 @@
+import { Action, StepLocationRelativeToParent } from '@openops/shared';
 import {
   Background,
   EdgeTypes,
@@ -8,13 +9,19 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import React, { ReactNode, useCallback, useRef, useState } from 'react';
+import { useEffectOnce } from 'react-use';
 import { Edge, Graph, WorkflowNode } from '../../lib/flow-canvas-utils';
 import { useCanvasContext } from './canvas-context';
+import { useClipboardContext } from './clipboard-context';
 import {
   InitialZoom,
   MAX_ZOOM,
   MIN_ZOOM,
   NODE_SELECTION_RECT_CLASS_NAME,
+  PLUS_CONTEXT_MENU_ATTRIBUTE,
+  PLUS_CONTEXT_MENU_BRANCH_NODE_ID_ATTRIBUTE,
+  PLUS_CONTEXT_MENU_PARENT_ATTRIBUTE,
+  PLUS_CONTEXT_MENU_STEP_LOCATION_ATTRIBUTE,
   SHIFT_KEY,
   STEP_CONTEXT_MENU_ATTRIBUTE,
 } from './constants';
@@ -27,11 +34,13 @@ type FlowCanvasProps = {
   graph?: Graph;
   topOffset?: number;
   allowCanvasPanning?: boolean;
-  children?: ReactNode;
+  selectStepByName?: (stepName: string) => void;
   ContextMenu?: React.ComponentType<{
     contextMenuType: ContextMenuType;
+    actionToPaste: Action | null;
     children: ReactNode;
   }>;
+  children?: ReactNode;
 };
 
 function getPanOnDrag(allowCanvasPanning: boolean, inGrabPanningMode: boolean) {
@@ -48,6 +57,7 @@ const FlowCanvas = React.memo(
     graph,
     topOffset,
     allowCanvasPanning = true,
+    selectStepByName,
     ContextMenu = ({ children }) => children,
     children,
   }: FlowCanvasProps) => {
@@ -56,7 +66,12 @@ const FlowCanvas = React.memo(
     const [contextMenuType, setContextMenuType] = useState<ContextMenuType>(
       ContextMenuType.CANVAS,
     );
+    const { actionToPaste, fetchClipboardOperations } = useClipboardContext();
     useResizeCanvas(containerRef);
+
+    useEffectOnce(() => {
+      fetchClipboardOperations();
+    });
 
     const onInit = useCallback(
       (reactFlow: ReactFlowInstance<WorkflowNode, Edge>) => {
@@ -73,13 +88,21 @@ const FlowCanvas = React.memo(
       [topOffset],
     );
 
-    const { panningMode, onSelectionChange, onSelectionEnd } =
-      useCanvasContext();
+    const {
+      readonly,
+      panningMode,
+      onSelectionChange,
+      onSelectionEnd,
+      pastePlusButton,
+      setPastePlusButton,
+    } = useCanvasContext();
     const inGrabPanningMode = panningMode === 'grab';
 
     const panOnDrag = getPanOnDrag(allowCanvasPanning, inGrabPanningMode);
 
-    const onContextMenu = (ev: React.MouseEvent<HTMLDivElement>) => {
+    const onContextMenu = async (ev: React.MouseEvent<HTMLDivElement>) => {
+      await fetchClipboardOperations();
+
       if (ev.target instanceof HTMLElement || ev.target instanceof SVGElement) {
         const stepElement = ev.target.closest(
           `[data-${STEP_CONTEXT_MENU_ATTRIBUTE}]`,
@@ -88,7 +111,21 @@ const FlowCanvas = React.memo(
           `data-${STEP_CONTEXT_MENU_ATTRIBUTE}`,
         );
 
-        if (stepName) {
+        const plusElement = ev.target.closest(
+          `[data-${PLUS_CONTEXT_MENU_ATTRIBUTE}]`,
+        );
+        const plusParentStep = plusElement?.getAttribute(
+          `data-${PLUS_CONTEXT_MENU_PARENT_ATTRIBUTE}`,
+        );
+        const plusStepLocation = plusElement?.getAttribute(
+          `data-${PLUS_CONTEXT_MENU_STEP_LOCATION_ATTRIBUTE}`,
+        );
+        const plusBranchNodeId = plusElement?.getAttribute(
+          `data-${PLUS_CONTEXT_MENU_BRANCH_NODE_ID_ATTRIBUTE}`,
+        );
+
+        if (stepName && typeof selectStepByName === 'function') {
+          selectStepByName(stepName);
           const reactFlowState = storeApi.getState();
           reactFlowState.setNodes(
             reactFlowState.nodes.map((node) => ({
@@ -96,6 +133,16 @@ const FlowCanvas = React.memo(
               selected: node.id === stepName,
             })),
           );
+        }
+
+        if (plusElement && plusParentStep) {
+          setPastePlusButton({
+            parentStep: plusParentStep,
+            plusStepLocation: plusStepLocation as StepLocationRelativeToParent,
+            branchNodeId: plusBranchNodeId as string | undefined,
+          });
+        } else if (pastePlusButton) {
+          setPastePlusButton(null);
         }
 
         const targetIsSelectionRect = ev.target.classList.contains(
@@ -117,7 +164,10 @@ const FlowCanvas = React.memo(
     return (
       <div className="size-full bg-editorBackground" ref={containerRef}>
         {!!graph && (
-          <ContextMenu contextMenuType={contextMenuType}>
+          <ContextMenu
+            contextMenuType={contextMenuType}
+            actionToPaste={actionToPaste}
+          >
             <ReactFlow
               nodeTypes={nodeTypes}
               nodes={graph.nodes}
@@ -136,16 +186,20 @@ const FlowCanvas = React.memo(
               elementsSelectable={true}
               nodesDraggable={false}
               nodesFocusable={false}
-              selectionKeyCode={inGrabPanningMode ? SHIFT_KEY : null}
-              multiSelectionKeyCode={inGrabPanningMode ? SHIFT_KEY : null}
-              selectionOnDrag={!inGrabPanningMode}
+              selectionKeyCode={
+                inGrabPanningMode && !readonly ? SHIFT_KEY : null
+              }
+              multiSelectionKeyCode={
+                inGrabPanningMode && !readonly ? SHIFT_KEY : null
+              }
+              selectionOnDrag={!inGrabPanningMode && !readonly}
               proOptions={{
                 hideAttribution: true,
               }}
               onInit={onInit}
               onContextMenu={onContextMenu}
-              onSelectionChange={onSelectionChange}
-              onSelectionEnd={onSelectionEnd}
+              onSelectionChange={readonly ? undefined : onSelectionChange}
+              onSelectionEnd={readonly ? undefined : onSelectionEnd}
             >
               <Background color="lightgray" />
               {children}

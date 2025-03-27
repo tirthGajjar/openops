@@ -5,26 +5,24 @@ import {
   ContextMenuType,
 } from '@openops/components/ui';
 
-import { flagsHooks } from '@/app/common/hooks/flags-hooks';
-import { FlagId } from '@openops/shared';
+import { Action } from '@openops/shared';
 import { useBuilderStateContext } from '../../builder-hooks';
 import { CanvasContextMenuContent } from './canvas-context-menu-content';
 
 export type CanvasContextMenuProps = {
   contextMenuType: ContextMenuType;
+  actionToPaste: Action | null;
   children?: React.ReactNode;
 };
 
 const CanvasContextMenuWrapper = ({
   children,
+  actionToPaste,
   contextMenuType,
 }: CanvasContextMenuProps) => {
   const readonly = useBuilderStateContext((state) => state.readonly);
-  const enableContextMenu =
-    flagsHooks.useFlag<boolean>(FlagId.COPY_PASTE_ACTIONS_ENABLED).data ||
-    false;
 
-  if (!enableContextMenu || readonly) {
+  if (readonly) {
     return children;
   }
 
@@ -34,6 +32,7 @@ const CanvasContextMenuWrapper = ({
       <ContextMenuContent>
         <CanvasContextMenuContent
           contextMenuType={contextMenuType}
+          actionToPaste={actionToPaste}
         ></CanvasContextMenuContent>
       </ContextMenuContent>
     </ContextMenu>
