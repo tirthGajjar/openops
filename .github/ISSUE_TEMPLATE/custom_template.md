@@ -21,10 +21,14 @@ Describe what you expected to happen.
 Describe what actually happened.
 
 ## Screenshots or logs, if applicable
-Please add screenshots and logs wherever applicable
+Please add screenshots wherever applicable.
+Generate logs by running `curl https://openops.sh/share-logs | sh` and share the log file name.
 
-## Your environment (OS, browser, version, etc.).
-Elaborate about your specific setup which adds more context to the issue
+## Your environment
+App version: 
+Operating System: 
+Browser: 
+Additional relevant information: 
 
 ## Additional Context
 Add any other context or screenshots about the issue here.
