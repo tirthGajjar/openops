@@ -4,11 +4,7 @@ import {
   FlowVersion,
   StepLocationRelativeToParent,
 } from '@openops/shared';
-import {
-  OnSelectionChangeParams,
-  useKeyPress,
-  useStoreApi,
-} from '@xyflow/react';
+import { OnSelectionChangeParams, useStoreApi } from '@xyflow/react';
 import { cloneDeep } from 'lodash-es';
 import {
   createContext,
@@ -21,6 +17,7 @@ import {
   useState,
 } from 'react';
 import { usePrevious } from 'react-use';
+import { useKeyPress } from '../../lib/use-key-press';
 import {
   COPY_KEYS,
   NODE_SELECTION_RECT_CLASS_NAME,
@@ -111,6 +108,7 @@ export const InteractiveContextProvider = ({
   const shiftPressed = useKeyPress(SHIFT_KEY);
   const copyPressed = useKeyPress(COPY_KEYS, {
     target: canvasRef.current,
+    actInsideInputWithModifier: false,
   });
 
   useEffect(() => {
@@ -245,7 +243,7 @@ export const InteractiveContextProvider = ({
     const activeElement = document.activeElement;
     const isInsideCanvas = activeElement?.closest(`#${flowCanvasContainerId}`);
 
-    if (!isInsideCanvas) {
+    if (!isInsideCanvas && selectedStep) {
       return;
     }
 
