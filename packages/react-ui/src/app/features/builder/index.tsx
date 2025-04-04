@@ -1,7 +1,7 @@
 import {
+  AiWidget,
   BuilderTreeViewProvider,
   CanvasControls,
-  ClipboardContextProvider,
   cn,
   ReadonlyCanvasProvider,
   ResizableHandle,
@@ -48,9 +48,9 @@ import { FlowSideMenu } from '../navigation/side-menu/flow/flow-side-menu';
 import LeftSidebarResizablePanel from '../navigation/side-menu/left-sidebar';
 import { BuilderHeader } from './builder-header/builder-header';
 import { CopilotSidebar } from './copilot';
+import { DataSelector } from './data-selector';
 import { FlowBuilderCanvas } from './flow-canvas/flow-builder-canvas';
 import { FLOW_CANVAS_CONTAINER_ID } from './flow-version-undo-redo/constants';
-import { Paste } from './flow-version-undo-redo/paste';
 import { UndoRedo } from './flow-version-undo-redo/undo-redo';
 import { FlowVersionsList } from './flow-versions';
 import { InteractiveBuilder } from './interactive-builder';
@@ -154,6 +154,8 @@ const BuilderPage = () => {
   );
   const middlePanelRef = useRef(null);
   const middlePanelSize = useElementSize(middlePanelRef);
+  const leftSidePanelRef = useRef(null);
+  const leftSidePanelSize = useElementSize(leftSidePanelRef);
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
   const rightHandleRef = useAnimateSidebar(rightSidebar);
   const {
@@ -233,24 +235,24 @@ const BuilderPage = () => {
       )}
 
       <ReactFlowProvider>
-        <ClipboardContextProvider copyPasteActionsEnabled={true}>
-          <BuilderTreeViewProvider selectedId={selectedStep || undefined}>
-            <ResizablePanelGroup
-              direction="horizontal"
-              className="absolute left-0 top-0"
-              onLayout={(size) => {
-                setPanelGroupSize(RESIZABLE_PANEL_GROUP, size);
-              }}
+        <BuilderTreeViewProvider selectedId={selectedStep || undefined}>
+          <ResizablePanelGroup
+            direction="horizontal"
+            className="absolute left-0 top-0"
+            onLayout={(size) => {
+              setPanelGroupSize(RESIZABLE_PANEL_GROUP, size);
+            }}
+          >
+            <LeftSidebarResizablePanel
+              minSize={LEFT_SIDEBAR_MIN_SIZE}
+              className={cn('min-w-0 w-0 bg-background z-20 shadow-sidebar', {
+                [LEFT_SIDEBAR_MIN_EFFECTIVE_WIDTH]:
+                  leftSidebar !== LeftSideBarType.NONE,
+                'max-w-0': leftSidebar === LeftSideBarType.NONE,
+              })}
+              isDragging={isDraggingHandle}
             >
-              <LeftSidebarResizablePanel
-                minSize={LEFT_SIDEBAR_MIN_SIZE}
-                className={cn('min-w-0 w-0 bg-background z-20 shadow-sidebar', {
-                  [LEFT_SIDEBAR_MIN_EFFECTIVE_WIDTH]:
-                    leftSidebar !== LeftSideBarType.NONE,
-                  'max-w-0': leftSidebar === LeftSideBarType.NONE,
-                })}
-                isDragging={isDraggingHandle}
-              >
+              <div className="h-full w-full" ref={leftSidePanelRef}>
                 {leftSidebar === LeftSideBarType.RUNS && <FlowRecentRunsList />}
                 {leftSidebar === LeftSideBarType.RUN_DETAILS && (
                   <FlowRunDetails />
@@ -263,94 +265,96 @@ const BuilderPage = () => {
                 )}
                 {leftSidebar === LeftSideBarType.MENU && <FlowSideMenu />}
                 {leftSidebar === LeftSideBarType.TREE_VIEW && <TreeView />}
-              </LeftSidebarResizablePanel>
+              </div>
+            </LeftSidebarResizablePanel>
+            <ResizableHandle
+              className="w-0"
+              disabled={leftSidebar === LeftSideBarType.NONE}
+              onDragging={setIsDraggingHandle}
+            />
+
+            <ResizablePanel
+              order={2}
+              id={RESIZABLE_PANEL_IDS.MAIN}
+              className={cn('min-w-[775px]', {
+                'min-w-[830px]': leftSidebar === LeftSideBarType.NONE,
+              })}
+            >
+              {readonly ? (
+                <ReadonlyCanvasProvider>
+                  <div ref={middlePanelRef} className="relative h-full w-full">
+                    <BuilderHeader />
+
+                    <CanvasControls
+                      topOffset={FLOW_CANVAS_Y_OFFESET}
+                    ></CanvasControls>
+                    <AiWidget />
+                    <DataSelector
+                      parentHeight={middlePanelSize.height}
+                      parentWidth={middlePanelSize.width}
+                    ></DataSelector>
+                    <div
+                      className={cn('h-screen w-full flex-1 z-10', {
+                        'bg-background': !isDraggingHandle,
+                      })}
+                      id={FLOW_CANVAS_CONTAINER_ID}
+                    >
+                      <FlowBuilderCanvas />
+                    </div>
+                  </div>
+                </ReadonlyCanvasProvider>
+              ) : (
+                <InteractiveBuilder
+                  selectedStep={selectedStep}
+                  clearSelectedStep={clearSelectedStep}
+                  middlePanelRef={middlePanelRef}
+                  middlePanelSize={middlePanelSize}
+                  flowVersion={flowVersion}
+                  lefSideBarContainerWidth={leftSidePanelSize?.width || 0}
+                />
+              )}
+            </ResizablePanel>
+
+            <>
               <ResizableHandle
-                className="w-0"
-                disabled={leftSidebar === LeftSideBarType.NONE}
+                disabled={!isRightSidebarVisible}
+                withHandle={isRightSidebarVisible}
                 onDragging={setIsDraggingHandle}
+                className="z-50 w-0"
               />
 
               <ResizablePanel
-                order={2}
-                id={RESIZABLE_PANEL_IDS.MAIN}
-                className={cn('min-w-[775px]', {
-                  'min-w-[830px]': leftSidebar === LeftSideBarType.NONE,
+                ref={rightHandleRef}
+                id={RESIZABLE_PANEL_IDS.RIGHT_SIDEBAR}
+                defaultSize={0}
+                minSize={0}
+                maxSize={60}
+                order={3}
+                className={cn('min-w-0 bg-background z-30', {
+                  [minWidthOfSidebar]: isRightSidebarVisible,
                 })}
               >
-                {readonly ? (
-                  <ReadonlyCanvasProvider>
-                    <div
-                      ref={middlePanelRef}
-                      className="relative h-full w-full"
-                    >
-                      <BuilderHeader />
-
-                      <CanvasControls
-                        topOffset={FLOW_CANVAS_Y_OFFESET}
-                      ></CanvasControls>
-
-                      <div
-                        className={cn('h-screen w-full flex-1 z-10', {
-                          'bg-background': !isDraggingHandle,
-                        })}
-                        id={FLOW_CANVAS_CONTAINER_ID}
-                      >
-                        <FlowBuilderCanvas />
-                      </div>
-                    </div>
-                  </ReadonlyCanvasProvider>
-                ) : (
-                  <InteractiveBuilder
-                    selectedStep={selectedStep}
-                    clearSelectedStep={clearSelectedStep}
-                    middlePanelRef={middlePanelRef}
-                    middlePanelSize={middlePanelSize}
-                    flowVersion={flowVersion}
-                  />
+                {isRightSidebarVisible && (
+                  <StepSettingsProvider
+                    blockModel={blockModel}
+                    selectedStep={memorizedSelectedStep}
+                    key={containerKey}
+                  >
+                    <DynamicFormValidationProvider>
+                      <StepSettingsContainer />
+                    </DynamicFormValidationProvider>
+                  </StepSettingsProvider>
                 )}
               </ResizablePanel>
-
-              <>
-                <ResizableHandle
-                  disabled={!isRightSidebarVisible}
-                  withHandle={isRightSidebarVisible}
-                  onDragging={setIsDraggingHandle}
-                  className="z-50 w-0"
-                />
-
-                <ResizablePanel
-                  ref={rightHandleRef}
-                  id={RESIZABLE_PANEL_IDS.RIGHT_SIDEBAR}
-                  defaultSize={0}
-                  minSize={0}
-                  maxSize={60}
-                  order={3}
-                  className={cn('min-w-0 bg-background z-30', {
-                    [minWidthOfSidebar]: isRightSidebarVisible,
-                  })}
-                >
-                  {isRightSidebarVisible && (
-                    <StepSettingsProvider
-                      blockModel={blockModel}
-                      selectedStep={memorizedSelectedStep}
-                      key={containerKey}
-                    >
-                      <DynamicFormValidationProvider>
-                        <StepSettingsContainer />
-                      </DynamicFormValidationProvider>
-                    </StepSettingsProvider>
-                  )}
-                </ResizablePanel>
-              </>
-            </ResizablePanelGroup>
-          </BuilderTreeViewProvider>
-          <UndoRedo />
-          <Paste />
-        </ClipboardContextProvider>
+            </>
+          </ResizablePanelGroup>
+        </BuilderTreeViewProvider>
+        <UndoRedo />
       </ReactFlowProvider>
     </div>
   );
 };
 
 BuilderPage.displayName = 'BuilderPage';
+
 export { BuilderPage };
