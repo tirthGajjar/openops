@@ -1,15 +1,17 @@
 import { createAction, Property } from '@openops/blocks-framework';
-import { chatId } from '../common/chat-id';
+import { ChatTypes } from '../common/chat-types';
+import { chatsAndChannels } from '../common/chats-and-channels';
 import { getMicrosoftGraphClient } from '../common/get-microsoft-graph-client';
 import { microsoftTeamsAuth } from '../common/microsoft-teams-auth';
 
-export const sendChatMessageAction = createAction({
+export const requestActionMessageAction = createAction({
   auth: microsoftTeamsAuth,
-  name: 'microsoft_teams_send_chat_message',
-  displayName: 'Send Chat Message',
-  description: 'Sends a message in an existing chat.',
+  name: 'microsoft_teams_request_action_message',
+  displayName: 'Request Action',
+  description:
+    'Send a message to a user or a channel and wait until an action is selected',
   props: {
-    chatId: chatId,
+    chatOrChannel: chatsAndChannels,
     contentType: Property.StaticDropdown({
       displayName: 'Content Type',
       required: true,
@@ -34,7 +36,7 @@ export const sendChatMessageAction = createAction({
     }),
   },
   async run(context) {
-    const { chatId, contentType, content } = context.propsValue;
+    const { chatOrChannel, contentType, content } = context.propsValue;
 
     const client = getMicrosoftGraphClient(context.auth.access_token);
 
@@ -45,6 +47,16 @@ export const sendChatMessageAction = createAction({
       },
     };
 
-    return await client.api(`/chats/${chatId.id}/messages`).post(chatMessage);
+    if (chatOrChannel.type === ChatTypes.CHAT) {
+      return await client
+        .api(`/chats/${chatOrChannel.id}/messages`)
+        .post(chatMessage);
+    } else {
+      return await client
+        .api(
+          `/teams/${chatOrChannel.teamId}/channels/${chatOrChannel.id}/messages`,
+        )
+        .post(chatMessage);
+    }
   },
 });
