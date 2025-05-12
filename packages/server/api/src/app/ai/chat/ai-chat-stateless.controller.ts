@@ -69,7 +69,7 @@ export const aiChatStatelessController: FastifyPluginAsyncTypebox = async (
 
     try {
       const usedApiKey = apiKey || process.env.OPENAI_API_KEY;
-      const usedModel = model || process.env.OPENAI_MODEL || 'gpt-4-turbo';
+      const usedModel = model || process.env.OPENAI_MODEL || 'gpt-4o';
       if (!usedApiKey) {
         return await reply
           .code(400)
@@ -82,16 +82,19 @@ export const aiChatStatelessController: FastifyPluginAsyncTypebox = async (
         model: languageModel,
         messages: coreMessages,
         tools: mcpTools,
+        toolChoice: 'auto',
       });
 
       const toolCalls = toolChoiceResult.toolCalls;
+      logger.info(toolCalls, `toolCalls`);
       if (toolCalls && toolCalls.length > 0) {
         const { toolName, args: parameters } = toolCalls[0];
 
         try {
-          logger.info('toolName', toolName);
-          logger.info('parameters', parameters);
+          logger.info(`toolName ${toolName}`);
+          logger.info(parameters, `parameters`);
           const toolResult = await callMcpTool(toolName, parameters);
+          logger.info(toolResult, `toolResult`);
 
           coreMessages.unshift({
             role: 'system',
@@ -103,7 +106,9 @@ export const aiChatStatelessController: FastifyPluginAsyncTypebox = async (
           });
         }
       } else {
-        // todo simply send the text without an extra LLM call
+        // simply send the text without an extra LLM call - need to check if it will not break the FE
+        // logger.info(toolChoiceResult.text, 'no toolCalls');
+        // return await reply.code(200).send(toolChoiceResult);
       }
 
       pipeDataStreamToResponse(reply.raw, {
