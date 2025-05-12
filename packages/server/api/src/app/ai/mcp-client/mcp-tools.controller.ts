@@ -28,7 +28,7 @@ export const mcpToolsController: FastifyPluginAsyncTypebox = async (app) => {
     const { toolName, params } = request.body;
     try {
       const result = await callMcpTool(toolName, params);
-      return reply.code(200).send(result);
+      return await reply.code(200).send(result);
     } catch (error) {
       return reply.code(400).send({ error: (error as Error).message });
     }
@@ -54,9 +54,11 @@ export const mcpToolsController: FastifyPluginAsyncTypebox = async (app) => {
       },
     },
     async (_request, reply) => {
-      return reply
-        .code(200)
-        .send(mcpTools.map(({ name, description }) => ({ name, description })));
+      const tools = Object.entries(mcpTools).map(([name, tool]) => ({
+        name,
+        description: tool.description!,
+      }));
+      return reply.code(200).send(tools);
     },
   );
 };

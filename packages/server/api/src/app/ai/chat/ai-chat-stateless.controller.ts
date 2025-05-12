@@ -1,9 +1,16 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
+import { logger } from '@openops/server-shared';
 import { PrincipalType } from '@openops/shared';
 import { Type } from '@sinclair/typebox';
-import { CoreMessage, pipeDataStreamToResponse, streamText } from 'ai';
+import {
+  CoreMessage,
+  generateText,
+  pipeDataStreamToResponse,
+  streamText,
+} from 'ai';
 import { callMcpTool } from '../mcp-client/mcp-api';
+import { mcpTools } from '../mcp-client/mcp-tools';
 
 const StatelessChatRequest = Type.Object({
   messages: Type.Array(
@@ -15,8 +22,6 @@ const StatelessChatRequest = Type.Object({
   model: Type.Optional(Type.String()),
   apiKey: Type.Optional(Type.String()),
   system: Type.Optional(Type.String()),
-  tool: Type.Optional(Type.String()), // MCP tool name
-  toolParams: Type.Optional(Type.Record(Type.String(), Type.Any())), // MCP tool params
 });
 
 const StatelessChatOptions = {
@@ -26,7 +31,7 @@ const StatelessChatOptions = {
   schema: {
     tags: ['ai', 'ai-chat'],
     description:
-      'Stateless chat endpoint using Vercel AI SDK. Streams response, does not store history. Optionally calls an MCP tool and injects its result into the conversation.',
+      'Stateless chat endpoint with tool calling support. LLM chooses and invokes MCP tools dynamically.',
     body: StatelessChatRequest,
     response: {
       200: Type.Any(),
@@ -37,48 +42,78 @@ const StatelessChatOptions = {
 export const aiChatStatelessController: FastifyPluginAsyncTypebox = async (
   app,
 ) => {
-  app.post('/stateless', StatelessChatOptions, async (request, reply) => {
-    let { messages } = request.body;
-    const { model, apiKey, system, tool, toolParams } = request.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+  app.post('/', StatelessChatOptions, async (request, reply) => {
+    const { messages: rawMessages, model, apiKey, system } = request.body;
+
+    const allowedRoles = ['user', 'assistant', 'system', 'tool'] as const;
+    const coreMessages: CoreMessage[] = (
+      rawMessages as Array<{ role: string; content: string }>
+    )
+      .filter((msg: { role: string; content: string }) =>
+        allowedRoles.includes(msg.role as (typeof allowedRoles)[number]),
+      )
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })) as CoreMessage[];
+
+    if (
+      !coreMessages ||
+      !Array.isArray(coreMessages) ||
+      coreMessages.length === 0
+    ) {
       return reply
         .code(400)
         .send({ error: 'Missing or invalid messages array.' });
     }
+
     try {
-      // If a tool is specified, call it and inject the result
-      if (tool) {
-        try {
-          const toolResult = await callMcpTool(tool, toolParams || {});
-          // Inject as a system message (or you could use a tool message if your AI model supports it)
-          messages = [
-            {
-              role: 'system',
-              content: `Tool (${tool}) result: ${JSON.stringify(toolResult)}`,
-            },
-            ...messages,
-          ];
-        } catch (toolErr) {
-          return await reply.code(400).send({
-            error: `MCP tool call failed: ${(toolErr as Error).message}`,
-          });
-        }
-      }
       const usedApiKey = apiKey || process.env.OPENAI_API_KEY;
-      const usedModel = model || process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+      const usedModel = model || process.env.OPENAI_MODEL || 'gpt-4-turbo';
       if (!usedApiKey) {
         return await reply
           .code(400)
           .send({ error: 'No API key provided or configured.' });
       }
+
       const languageModel = createOpenAI({ apiKey: usedApiKey })(usedModel);
+
+      const toolChoiceResult = await generateText({
+        model: languageModel,
+        messages: coreMessages,
+        tools: mcpTools,
+      });
+
+      const toolCalls = toolChoiceResult.toolCalls;
+      if (toolCalls && toolCalls.length > 0) {
+        const { toolName, args: parameters } = toolCalls[0];
+
+        try {
+          logger.info('toolName', toolName);
+          logger.info('parameters', parameters);
+          const toolResult = await callMcpTool(toolName, parameters);
+
+          coreMessages.unshift({
+            role: 'system',
+            content: `Tool (${toolName}) result: ${JSON.stringify(toolResult)}`,
+          });
+        } catch (toolError) {
+          return await reply.code(500).send({
+            error: `Tool invocation failed: ${(toolError as Error).message}`,
+          });
+        }
+      } else {
+        // todo simply send the text without an extra LLM call
+      }
+
       pipeDataStreamToResponse(reply.raw, {
         execute: async (dataStreamWriter) => {
           const result = streamText({
             model: languageModel,
-            messages: messages as CoreMessage[],
+            messages: coreMessages,
             ...(system ? { system } : {}),
           });
+
           result.mergeIntoDataStream(dataStreamWriter);
         },
         onError: (error) => {
