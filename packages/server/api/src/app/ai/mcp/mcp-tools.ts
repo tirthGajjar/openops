@@ -1,6 +1,6 @@
 import { ToolSet } from 'ai';
+import { getDocsTools } from './docs-tools';
 import { getSupersetTools } from './superset-tools';
-// import { getDocsTools } from './docs-tools';
 
 let toolSet: ToolSet;
 export const getMCPTools = async (): Promise<ToolSet> => {
@@ -10,7 +10,7 @@ export const getMCPTools = async (): Promise<ToolSet> => {
 
   toolSet = {
     ...(await getSupersetTools()),
-    // ...(await getDocsTools()),
+    ...(await getDocsTools()),
   };
 
   return toolSet;
