@@ -7,6 +7,7 @@ import {
   LoadingSpinner,
   MarkdownCodeVariations,
 } from '@openops/components/ui';
+import { t } from 'i18next';
 import { useMemo } from 'react';
 
 type AiAssistantConversationnProps = {
@@ -25,16 +26,25 @@ const AiAssistantConversation = ({
   isPending,
 }: AiAssistantConversationnProps) => {
   const uiMessages: AIChatMessage[] = useMemo(() => {
-    return messages.map((message: MessageType, idx) => ({
-      id: message && 'id' in message ? message.id : String(idx),
-      role:
-        message.role.toLowerCase() === 'user'
-          ? AIChatMessageRole.user
-          : AIChatMessageRole.assistant,
-      content: Array.isArray(message.content)
+    return messages.map((message: MessageType, idx) => {
+      let messageContent = Array.isArray(message.content)
         ? message.content.map((c) => c.text).join()
-        : message.content,
-    }));
+        : message.content;
+      if (messageContent.includes('Invalid schema for function')) {
+        messageContent = t(
+          'Looks like the LLM configured does not support tool calling. Please try again with a different LLM provider that supports tool calling.',
+        );
+      }
+
+      return {
+        id: message && 'id' in message ? message.id : String(idx),
+        role:
+          message.role.toLowerCase() === 'user'
+            ? AIChatMessageRole.user
+            : AIChatMessageRole.assistant,
+        content: messageContent,
+      };
+    });
   }, [messages]);
 
   if (isPending) {
