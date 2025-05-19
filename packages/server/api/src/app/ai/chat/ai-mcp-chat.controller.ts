@@ -13,7 +13,6 @@ import {
 import {
   CoreMessage,
   DataStreamWriter,
-  generateText,
   LanguageModel,
   pipeDataStreamToResponse,
   streamText,
@@ -34,10 +33,10 @@ import {
   getChatHistory,
   getSummarizedChatHistory,
 } from './ai-chat.service';
+import { summarizeMessages } from './ai-message-history-summarizer';
+import { generateMessageId } from './ai-message-id-generator';
 import { getMcpSystemPrompt } from './prompts.service';
 
-let historyMaxTokens: number;
-let historyMaxMessages: number;
 const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
 );
@@ -263,100 +262,4 @@ function endStreamWithErrorMessage(
   dataStreamWriter.write(
     `d:{"finishReason":"stop","usage":{"promptTokens":null,"completionTokens":null}}\n`,
   );
-}
-
-function generateMessageId(): string {
-  const randomBytes = crypto.getRandomValues(new Uint8Array(18));
-  const base64url = Array.from(randomBytes)
-    .map((b) => b.toString(36).padStart(2, '0'))
-    .join('')
-    .slice(0, 24);
-
-  return `msg-${base64url}`;
-}
-
-async function summarizeMessages(
-  languageModel: LanguageModel,
-  aiConfig: AiConfig,
-  messages: CoreMessage[],
-  totalTokens: number,
-): Promise<CoreMessage[]> {
-  const maxTokens = getHistoryMaxTokens(aiConfig);
-  let debugMessage = `Token count ${totalTokens}, which exceeds the configured limit of ${maxTokens}. Summarizing messages.`;
-  if (isNaN(totalTokens)) {
-    const maxMessages = getHistoryMaxMessages();
-    debugMessage = `Message count is ${messages.length}, which exceeds the configured limit of ${maxMessages}. Summarizing messages.`;
-    logger.debug(
-      `The model is not providing token usage. Checking if the number of messages exceeds ${maxMessages}.`,
-    );
-    if (messages.length < maxMessages) {
-      return messages;
-    }
-  } else if (totalTokens < maxTokens) {
-    return messages;
-  }
-
-  logger.info(debugMessage);
-
-  const { text } = await getSummaryMessage(
-    languageModel,
-    aiConfig,
-    messages,
-    maxTokens,
-  );
-
-  return [
-    {
-      role: 'system',
-      content: `The following is a summary of the previous conversation: ${text}`,
-    },
-  ];
-}
-
-async function getSummaryMessage(
-  languageModel: LanguageModel,
-  aiConfig: AiConfig,
-  messages: CoreMessage[],
-  maxTokens: number,
-): Promise<{ text: string }> {
-  const systemPrompt =
-    'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
-
-  return generateText({
-    model: languageModel,
-    system: systemPrompt,
-    messages,
-    ...aiConfig.modelSettings,
-    maxTokens,
-  });
-}
-
-function getHistoryMaxTokens(aiConfig: AiConfig): number {
-  if (historyMaxTokens) {
-    return historyMaxTokens;
-  }
-
-  const modelMax = aiConfig.modelSettings?.maxTokens;
-  if (typeof modelMax === 'number') {
-    historyMaxTokens = modelMax / 2;
-  } else {
-    const defaultMax = system.getNumberOrThrow(
-      AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY,
-    );
-    historyMaxTokens = defaultMax / 2;
-  }
-
-  return historyMaxTokens;
-}
-
-function getHistoryMaxMessages(): number {
-  if (historyMaxMessages) {
-    return historyMaxMessages;
-  }
-
-  historyMaxMessages = system.getNumberOrThrow(
-    AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY,
-  );
-
-  return historyMaxMessages;
 }
