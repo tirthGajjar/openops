@@ -5,7 +5,7 @@ import {
   Validators,
 } from '@openops/blocks-framework';
 import { ExecutionType } from '@openops/shared';
-import { ChannelOption, ChatOption } from '../common/chat-types';
+import { ChannelOption, ChatOption, UserOption } from '../common/chat-types';
 import { chatsAndChannels } from '../common/chats-and-channels';
 import {
   TeamsMessageAction,
@@ -14,6 +14,8 @@ import {
 import { microsoftTeamsAuth } from '../common/microsoft-teams-auth';
 import { onActionReceived } from '../common/on-action-received';
 import { sendChatOrChannelMessage } from '../common/send-chat-or-channel-message';
+import { sendUserOrChannelMessage } from '../common/send-user-or-channel-message';
+import { usersAndChannels } from '../common/users-and-channels';
 import { waitForInteraction } from '../common/wait-for-interaction';
 
 export const requestActionMessageAction = createAction({
@@ -23,7 +25,7 @@ export const requestActionMessageAction = createAction({
   description:
     'Send a message to a user or a channel and wait until an action is selected',
   props: {
-    chatOrChannel: chatsAndChannels,
+    usersAndChannels: usersAndChannels,
     header: Property.ShortText({
       displayName: 'Header',
       required: true,
@@ -72,9 +74,9 @@ export const requestActionMessageAction = createAction({
     }),
   },
   async run(context) {
-    const { chatOrChannel, header, message, actions } =
+    const { usersAndChannels, header, message, actions } =
       context.propsValue as unknown as {
-        chatOrChannel: ChatOption | ChannelOption;
+        usersAndChannels: UserOption | ChannelOption;
         header: string;
         message: string;
         actions: TeamsMessageAction[];
@@ -82,6 +84,7 @@ export const requestActionMessageAction = createAction({
     if (context.executionType === ExecutionType.BEGIN) {
       const preparedActions: TeamsMessageButton[] = actions.map((action) => ({
         ...action,
+        type: 'Action.Submit',
         resumeUrl: context.generateResumeUrl({
           queryParams: {
             executionCorrelationId: context.run.pauseId,
@@ -90,9 +93,11 @@ export const requestActionMessageAction = createAction({
         }),
       }));
 
-      const result = await sendChatOrChannelMessage({
+      console.log('AUTH', context.auth);
+
+      const result = await sendUserOrChannelMessage({
         accessToken: context.auth.access_token,
-        chatOrChannel,
+        usersAndChannels,
         header,
         message,
         actions: preparedActions,
@@ -125,10 +130,6 @@ export const requestActionMessageAction = createAction({
     }
 
     return await onActionReceived({
-      chatOrChannel,
-      messageObj,
-      header,
-      message,
       actions,
       context,
     });

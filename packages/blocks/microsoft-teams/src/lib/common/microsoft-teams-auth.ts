@@ -13,6 +13,7 @@ export const microsoftTeamsAuth = BlockAuth.OAuth2({
     'ChannelMessage.Send',
     'Team.ReadBasic.All',
     'Chat.ReadWrite',
+    'User-Mail.ReadWrite.All',
   ],
   authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
   tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',

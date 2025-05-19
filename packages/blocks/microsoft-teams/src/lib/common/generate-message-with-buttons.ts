@@ -3,7 +3,10 @@ export type TeamsMessageAction = {
   buttonStyle: string;
 };
 
-export type TeamsMessageButton = TeamsMessageAction & { resumeUrl?: string };
+export type TeamsMessageButton = TeamsMessageAction & {
+  type: 'Action.Submit' | 'Action.OpenUrl';
+  resumeUrl?: string;
+};
 
 export interface InteractionPayload {
   button: string;

@@ -1,14 +1,14 @@
 import { httpClient, HttpMethod, HttpRequest } from '@openops/blocks-common';
-import { ChannelOption, ChatOption } from './chat-types';
+import { ChannelOption, UserOption } from './chat-types';
 import {
   generateMessageWithButtons,
   TeamsMessageButton,
 } from './generate-message-with-buttons';
 import { getMicrosoftGraphClient } from './get-microsoft-graph-client';
 
-export const sendChatOrChannelMessage = async ({
+export const sendUserOrChannelMessage = async ({
   accessToken,
-  chatOrChannel,
+  usersAndChannels,
   header,
   message,
   actions = [],
@@ -16,7 +16,7 @@ export const sendChatOrChannelMessage = async ({
   additionalText,
 }: {
   accessToken: string;
-  chatOrChannel: ChatOption | ChannelOption;
+  usersAndChannels: UserOption | ChannelOption;
   header: string;
   message?: string;
   actions: TeamsMessageButton[];
@@ -46,8 +46,8 @@ export const sendChatOrChannelMessage = async ({
     method: HttpMethod.POST,
     url: `http://localhost:3978/api/request-action`,
     body: {
-      type: chatOrChannel.type,
-      chatOrChannel: chatOrChannel.id,
+      type: usersAndChannels.type,
+      userOrChannelId: usersAndChannels.id,
       value: {
         header,
         message,
