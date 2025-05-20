@@ -226,7 +226,7 @@ async function streamMessages(
     ...aiConfig.modelSettings,
     tools,
     toolChoice: 'auto',
-    maxRetries: 0,
+    maxRetries: 1,
     async onError({ error }) {
       const message = error instanceof Error ? error.message : String(error);
       endStreamWithErrorMessage(dataStreamWriter, message);
