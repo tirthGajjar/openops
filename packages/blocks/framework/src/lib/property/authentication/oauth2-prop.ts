@@ -4,6 +4,7 @@ import { StaticPropsValue } from '..';
 import { ValidationInputType } from '../../validators/types';
 import { TPropertyValue } from '../input/common';
 import { StaticDropdownProperty } from '../input/dropdown/static-dropdown';
+import { MarkDownProperty } from '../input/markdown-property';
 import { PropertyType } from '../input/property-type';
 import { ShortTextProperty } from '../input/text-property';
 import { BaseBlockAuthSchema } from './common';
@@ -18,12 +19,14 @@ const OAuthProp = Type.Union([
   ShortTextProperty,
   SecretTextProperty,
   StaticDropdownProperty,
+  MarkDownProperty,
 ]);
 
 type OAuthProp =
   | ShortTextProperty<boolean>
   | SecretTextProperty<boolean>
-  | StaticDropdownProperty<any, true>;
+  | StaticDropdownProperty<any, true>
+  | MarkDownProperty;
 
 export const OAuth2Props = Type.Record(Type.String(), OAuthProp);
 
