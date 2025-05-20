@@ -3,6 +3,7 @@ import { ChannelOption, ChatOption } from './chat-types';
 import { getAllChannelOptionsByTeam } from './get-all-channel-options-by-team';
 import { getAllTeams } from './get-all-teams';
 import { getAllUserOptions } from './get-all-user-options';
+import { getTenantIdFromToken } from './get-tenant-id-from-token';
 import { microsoftTeamsAuth } from './microsoft-teams-auth';
 
 export const usersAndChannels = Property.Dropdown({
@@ -20,12 +21,13 @@ export const usersAndChannels = Property.Dropdown({
     }
     const authValue = auth as BlockPropValueSchema<typeof microsoftTeamsAuth>;
 
-    const userOptions = await getAllUserOptions(authValue);
+    const tenantId = getTenantIdFromToken(authValue.access_token);
+
+    const userOptions = await getAllUserOptions(tenantId);
+
     const teamIds = await getAllTeams(authValue);
 
-    const channelOptions = await Promise.all(
-      teamIds.map((teamId) => getAllChannelOptionsByTeam(authValue, teamId)),
-    );
+    const channelOptions = await getAllChannelOptionsByTeam(tenantId, teamIds);
 
     const flattenedChannelOptions = channelOptions.flat();
 

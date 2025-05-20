@@ -5,16 +5,11 @@ import {
   Validators,
 } from '@openops/blocks-framework';
 import { ExecutionType } from '@openops/shared';
-import { ChannelOption, ChatOption, UserOption } from '../common/chat-types';
-import { chatsAndChannels } from '../common/chats-and-channels';
-import {
-  TeamsMessageAction,
-  TeamsMessageButton,
-} from '../common/generate-message-with-buttons';
+import { ChannelOption, UserOption } from '../common/chat-types';
 import { microsoftTeamsAuth } from '../common/microsoft-teams-auth';
 import { onActionReceived } from '../common/on-action-received';
-import { sendChatOrChannelMessage } from '../common/send-chat-or-channel-message';
 import { sendUserOrChannelMessage } from '../common/send-user-or-channel-message';
+import { TeamsMessageAction, TeamsMessageButton } from '../common/types';
 import { usersAndChannels } from '../common/users-and-channels';
 import { waitForInteraction } from '../common/wait-for-interaction';
 
@@ -92,8 +87,6 @@ export const requestActionMessageAction = createAction({
           },
         }),
       }));
-
-      console.log('AUTH', context.auth);
 
       const result = await sendUserOrChannelMessage({
         accessToken: context.auth.access_token,

@@ -1,13 +1,9 @@
 import { httpClient, HttpMethod, HttpRequest } from '@openops/blocks-common';
+import { AppSystemProp, system } from '@openops/server-shared';
 import { ChannelOption, UserOption } from './chat-types';
-import {
-  generateMessageWithButtons,
-  TeamsMessageButton,
-} from './generate-message-with-buttons';
-import { getMicrosoftGraphClient } from './get-microsoft-graph-client';
+import { TeamsMessageButton } from './types';
 
 export const sendUserOrChannelMessage = async ({
-  accessToken,
   usersAndChannels,
   header,
   message,
@@ -23,28 +19,11 @@ export const sendUserOrChannelMessage = async ({
   enableActions?: boolean;
   additionalText?: string;
 }) => {
-  const client = getMicrosoftGraphClient(accessToken);
-
-  const messagePayload = generateMessageWithButtons({
-    header,
-    message,
-    actions,
-    enableActions,
-    additionalText,
-  });
-
-  // if (chatOrChannel.type === ChatTypes.CHAT) {
-  //   return await client
-  //     .api(`/chats/${chatOrChannel.id}/messages`)
-  //     .post(messagePayload);
-  // }
-  // return await client
-  //   .api(`/teams/${chatOrChannel.teamId}/channels/${chatOrChannel.id}/messages`)
-  //   .post(messagePayload);
-
   const request: HttpRequest = {
     method: HttpMethod.POST,
-    url: `http://localhost:3978/api/request-action`,
+    url: `${system.get(
+      AppSystemProp.OPENOPS_TABLES_API_URL,
+    )}/api/request-action`,
     body: {
       type: usersAndChannels.type,
       userOrChannelId: usersAndChannels.id,
@@ -58,5 +37,5 @@ export const sendUserOrChannelMessage = async ({
     },
   };
 
-  return await httpClient.sendRequest<any>(request);
+  return await httpClient.sendRequest(request);
 };

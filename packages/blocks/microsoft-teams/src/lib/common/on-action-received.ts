@@ -1,8 +1,5 @@
 import { StoreScope } from '@openops/blocks-framework';
-import {
-  InteractionPayload,
-  TeamsMessageAction,
-} from './generate-message-with-buttons';
+import { InteractionPayload, TeamsMessageAction } from './types';
 
 export const onActionReceived = async ({
   actions,
