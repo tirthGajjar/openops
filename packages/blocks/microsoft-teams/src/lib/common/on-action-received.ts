@@ -1,5 +1,4 @@
 import { StoreScope } from '@openops/blocks-framework';
-import { ChannelOption, ChatOption } from './chat-types';
 import {
   InteractionPayload,
   TeamsMessageAction,
@@ -11,10 +10,7 @@ export const onActionReceived = async ({
   actions,
   context,
 }: {
-  chatOrChannel: ChatOption | ChannelOption;
   messageObj: any;
-  header: string;
-  message: string;
   actions: TeamsMessageButton[];
   context: any;
 }) => {
