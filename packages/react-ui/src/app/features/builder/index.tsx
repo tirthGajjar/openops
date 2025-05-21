@@ -1,5 +1,4 @@
 import {
-  AiWidget,
   BuilderTreeViewProvider,
   CanvasControls,
   cn,
@@ -9,28 +8,32 @@ import {
   ResizablePanelGroup,
 } from '@openops/components/ui';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ImperativePanelHandle } from 'react-resizable-panels';
 import { useSearchParams } from 'react-router-dom';
 import { useMeasure } from 'react-use';
 
 import {
-  LeftSideBarType,
-  RightSideBarType,
   useBuilderStateContext,
   useSwitchToDraft,
 } from '@/app/features/builder/builder-hooks';
 import { DynamicFormValidationProvider } from '@/app/features/builder/dynamic-form-validation/dynamic-form-validation-context';
 
-import { flagsHooks } from '@/app/common/hooks/flags-hooks';
 import { useResizablePanelGroup } from '@/app/common/hooks/use-resizable-panel-group';
 import { useSocket } from '@/app/common/providers/socket-provider';
+import { PanelSizes } from '@/app/common/types/panel-sizes';
 import { FLOW_CANVAS_Y_OFFESET } from '@/app/constants/flow-canvas';
 import { SEARCH_PARAMS } from '@/app/constants/search-params';
+import { AiAssistantButton } from '@/app/features/ai/ai-assistant-button';
 import {
   ActionType,
   BlockTrigger,
-  FlagId,
   flowHelper,
   isNil,
   TriggerType,
@@ -44,11 +47,13 @@ import {
   LEFT_SIDEBAR_MIN_EFFECTIVE_WIDTH,
   LEFT_SIDEBAR_MIN_SIZE,
 } from '../../constants/sidebar';
+import { AiAssistantChat } from '../ai/ai-assistant-chat';
 import { blocksHooks } from '../blocks/lib/blocks-hook';
 import { RunDetailsBar } from '../flow-runs/components/run-details-bar';
 import { FlowSideMenu } from '../navigation/side-menu/flow/flow-side-menu';
 import LeftSidebarResizablePanel from '../navigation/side-menu/left-sidebar';
 import { BuilderHeader } from './builder-header/builder-header';
+import { LeftSideBarType, RightSideBarType } from './builder-types';
 import { FlowBuilderCanvas } from './flow-canvas/flow-builder-canvas';
 import { FLOW_CANVAS_CONTAINER_ID } from './flow-version-undo-redo/constants';
 import { UndoRedo } from './flow-version-undo-redo/undo-redo';
@@ -62,22 +67,33 @@ import { TreeView } from './tree-view';
 
 const minWidthOfSidebar = 'min-w-[max(20vw,400px)]';
 
+const MIDDLE_PANEL_TOP_OFFSET = 60;
+
 const useAnimateSidebar = (
   sidebarValue: LeftSideBarType | RightSideBarType,
 ) => {
   const handleRef = useRef<ImperativePanelHandle>(null);
+
   const sidebarbarClosed = [
     LeftSideBarType.NONE,
     RightSideBarType.NONE,
   ].includes(sidebarValue);
+
   useEffect(() => {
-    const sidebarSize = handleRef.current?.getSize() ?? 0;
-    if (sidebarbarClosed) {
-      handleRef.current?.resize(0);
-    } else if (sidebarSize === 0) {
-      handleRef.current?.resize(25);
-    }
-  }, [handleRef, sidebarValue, sidebarbarClosed]);
+    requestAnimationFrame(() => {
+      try {
+        const size = handleRef.current?.getSize?.() ?? 0;
+        if (sidebarbarClosed) {
+          handleRef.current?.resize?.(0);
+        } else if (size === 0) {
+          handleRef.current?.resize?.(25);
+        }
+      } catch (err) {
+        console.warn('Sidebar update skipped', err);
+      }
+    });
+  }, [sidebarValue, sidebarbarClosed]);
+
   return handleRef;
 };
 
@@ -92,9 +108,6 @@ const constructContainerKey = (
 
 const BuilderPage = () => {
   const [searchParams] = useSearchParams();
-  const { data: isAIEnabled = false } = flagsHooks.useFlag(
-    FlagId.SHOW_AI_SETTINGS,
-  );
 
   const [
     selectedStep,
@@ -153,7 +166,7 @@ const BuilderPage = () => {
       };
     },
   );
-  const [middlePanelRef, middlePanelSize] = useMeasure<HTMLDivElement>();
+  const [middlePanelRef, rawMiddlePanelSize] = useMeasure<HTMLDivElement>();
   const [leftSidePanelRef, leftSidePanelSize] = useMeasure<HTMLDivElement>();
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
   const rightHandleRef = useAnimateSidebar(rightSidebar);
@@ -204,6 +217,13 @@ const BuilderPage = () => {
     memorizedSelectedStep.type !== TriggerType.EMPTY &&
     !isBlockLoading;
 
+  const middlePanelSize = useMemo(() => {
+    return {
+      width: rawMiddlePanelSize.width,
+      height: rawMiddlePanelSize.height - MIDDLE_PANEL_TOP_OFFSET,
+    };
+  }, [rawMiddlePanelSize.height, rawMiddlePanelSize.width]);
+
   return (
     <div className="flex h-screen w-screen flex-col relative">
       {run && (
@@ -226,7 +246,7 @@ const BuilderPage = () => {
             direction="horizontal"
             className="absolute left-0 top-0"
             onLayout={(size) => {
-              setPanelGroupSize(RESIZABLE_PANEL_GROUP, size);
+              setPanelGroupSize(RESIZABLE_PANEL_GROUP, size as PanelSizes);
             }}
           >
             <LeftSidebarResizablePanel
@@ -256,22 +276,24 @@ const BuilderPage = () => {
               onDragging={setIsDraggingHandle}
             />
 
-            <ResizablePanel
-              order={2}
-              id={RESIZABLE_PANEL_IDS.MAIN}
-              className={cn('min-w-[775px]', {
-                'min-w-[830px]': leftSidebar === LeftSideBarType.NONE,
-              })}
-            >
+            <ResizablePanel order={2} id={RESIZABLE_PANEL_IDS.MAIN}>
               {readonly ? (
                 <ReadonlyCanvasProvider>
                   <div ref={middlePanelRef} className="relative h-full w-full">
                     <BuilderHeader />
-
+                    <AiAssistantChat
+                      middlePanelSize={middlePanelSize}
+                      className={'left-4 bottom-[70px]'}
+                    />
+                    {leftSidebar === LeftSideBarType.NONE && (
+                      <AiAssistantButton className="size-[42px] absolute left-4 bottom-[10px] z-50" />
+                    )}
                     <CanvasControls
                       topOffset={FLOW_CANVAS_Y_OFFESET}
+                      className={cn({
+                        'left-[74px]': leftSidebar === LeftSideBarType.NONE,
+                      })}
                     ></CanvasControls>
-                    {!isAIEnabled && <AiWidget />}
                     <div
                       className={cn('h-screen w-full flex-1 z-10', {
                         'bg-background': !isDraggingHandle,

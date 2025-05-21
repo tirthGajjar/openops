@@ -1,53 +1,72 @@
-import { ExpandIcon, PanelRightDashedIcon, X as XIcon } from 'lucide-react';
-import { cn } from '../../lib/cn';
+import { t } from 'i18next';
+import { ExpandIcon, MinimizeIcon, X as XIcon } from 'lucide-react';
 import { Button } from '../../ui/button';
-import { AI_CHAT_CONTAINER_SIZES, AiChatContainerSizeState } from './types';
+import { NewAiChatButton } from '../new-ai-chat-button';
+import { TooltipWrapper } from '../tooltip-wrapper';
+import { AI_CHAT_CONTAINER_SIZES, AiCliChatContainerSizeState } from './types';
 
 type AiChatSizeTogglersProps = {
-  size: AiChatContainerSizeState;
-  toggleContainerSizeState: (state: AiChatContainerSizeState) => void;
+  state: AiCliChatContainerSizeState;
+  toggleContainerSizeState: (state: AiCliChatContainerSizeState) => void;
   onCloseClick: () => void;
+  enableNewChat: boolean;
+  onNewChatClick: () => void;
 };
 
 const AiChatSizeTogglers = ({
-  size,
+  state,
   toggleContainerSizeState,
   onCloseClick,
+  enableNewChat,
+  onNewChatClick,
 }: AiChatSizeTogglersProps) => {
-  const buttonClassName = (btnState: AiChatContainerSizeState) =>
-    cn('', {
-      'text-outline': size === btnState,
-      'text-outline opacity-50 hover:opacity-100': size !== btnState,
-    });
-
   return (
     <>
-      <Button
-        size="icon"
-        onClick={() =>
-          toggleContainerSizeState(AI_CHAT_CONTAINER_SIZES.EXPANDED)
+      <TooltipWrapper
+        tooltipText={
+          state === AI_CHAT_CONTAINER_SIZES.EXPANDED ? t('Dock') : t('Expand')
         }
-        className={buttonClassName(AI_CHAT_CONTAINER_SIZES.EXPANDED)}
-        variant="basic"
       >
-        <ExpandIcon />
-      </Button>
-      <Button
-        size="icon"
-        onClick={() => toggleContainerSizeState(AI_CHAT_CONTAINER_SIZES.DOCKED)}
-        className={buttonClassName(AI_CHAT_CONTAINER_SIZES.DOCKED)}
-        variant="basic"
-      >
-        <PanelRightDashedIcon></PanelRightDashedIcon>
-      </Button>
-      <Button
-        size="icon"
-        variant="basic"
-        onClick={onCloseClick}
-        className="text-outline opacity-50 hover:opacity-100"
-      >
-        <XIcon />
-      </Button>
+        <>
+          <NewAiChatButton
+            enableNewChat={enableNewChat}
+            onNewChatClick={onNewChatClick}
+          />
+          <Button
+            size="icon"
+            className="text-outline"
+            onClick={(e) => {
+              e.stopPropagation();
+
+              if (state === AI_CHAT_CONTAINER_SIZES.EXPANDED) {
+                toggleContainerSizeState(AI_CHAT_CONTAINER_SIZES.DOCKED);
+              } else {
+                toggleContainerSizeState(AI_CHAT_CONTAINER_SIZES.EXPANDED);
+              }
+            }}
+            variant="basic"
+          >
+            {state === AI_CHAT_CONTAINER_SIZES.EXPANDED ? (
+              <MinimizeIcon size={16} />
+            ) : (
+              <ExpandIcon size={16} />
+            )}
+          </Button>
+        </>
+      </TooltipWrapper>
+      <TooltipWrapper tooltipText={t('Close')}>
+        <Button
+          size="icon"
+          variant="basic"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCloseClick();
+          }}
+          className="text-outline"
+        >
+          <XIcon size={20} />
+        </Button>
+      </TooltipWrapper>
     </>
   );
 };
