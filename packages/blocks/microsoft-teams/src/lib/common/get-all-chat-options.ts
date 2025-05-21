@@ -27,7 +27,7 @@ export async function getAllChatOptions(
   return options;
 }
 
-const CHAT_TYPE = {
+export const CHAT_TYPE = {
   oneOnOne: '1 : 1',
   group: 'Group',
   meeting: 'Meeting',

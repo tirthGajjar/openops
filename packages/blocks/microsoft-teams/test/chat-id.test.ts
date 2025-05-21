@@ -28,9 +28,7 @@ describe('chatId', () => {
 
     expect(result).toEqual({
       disabled: false,
-      options: [
-        { label: '(1 : 1 Chat) Chat A', value: { id: '100', type: 'chat' } },
-      ],
+      options: [{ label: '(1 : 1 Chat) Chat A', value: '100' }],
     });
   });
 
