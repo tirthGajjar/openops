@@ -55,7 +55,7 @@ async function populateChatOptions(
       .join(',');
 
   options.push({
-    label: `(${CHAT_TYPE[elem.chatType!]} Chat) ${chatName || '(no title)'}`,
+    label: `(${CHAT_TYPE[elem.chatType!]} Chat) ${chatName ?? '(no title)'}`,
     value: elem.id!,
   });
 }
