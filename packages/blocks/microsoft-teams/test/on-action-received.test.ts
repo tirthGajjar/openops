@@ -1,20 +1,4 @@
-import {
-  ChannelOption,
-  ChatOption,
-  ChatTypes,
-} from '../src/lib/common/chat-types';
 import { onActionReceived } from '../src/lib/common/on-action-received';
-
-const mockChannelOption: ChannelOption = {
-  id: 'channel-id',
-  teamId: 'team-id',
-  type: ChatTypes.CHANNEL,
-};
-
-const mockChatOption: ChatOption = {
-  id: 'chat-id',
-  type: ChatTypes.CHAT,
-};
 
 const mockMessageObj = {
   id: 'message-id',
@@ -57,10 +41,7 @@ describe('onActionReceived', () => {
     mockContext.resumePayload = { queryParams: { button: '', path: '' } };
 
     const result = await onActionReceived({
-      chatOrChannel: mockChannelOption,
       messageObj: mockMessageObj,
-      header: 'Header',
-      message: 'Message body',
       actions: mockActions,
       context: mockContext,
     });
@@ -82,10 +63,7 @@ describe('onActionReceived', () => {
 
     await expect(
       onActionReceived({
-        chatOrChannel: mockChatOption,
         messageObj: mockMessageObj,
-        header: 'Header',
-        message: 'Message body',
         actions: mockActions,
         context: mockContext,
       }),
@@ -102,10 +80,7 @@ describe('onActionReceived', () => {
     };
 
     const result = await onActionReceived({
-      chatOrChannel: mockChannelOption,
       messageObj: mockMessageObj,
-      header: 'Header',
-      message: 'Message body',
       actions: mockActions,
       context: mockContext,
     });
