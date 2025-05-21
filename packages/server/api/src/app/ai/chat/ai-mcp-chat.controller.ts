@@ -45,6 +45,7 @@ const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
 );
 
+const MAX_RECURSION_DEPTH = 10;
 export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   app.post(
     '/open',
@@ -116,7 +117,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       key.includes('superset'),
     );
     const isTablesLoaded = Object.keys(tools).some((key) =>
-      key.includes('Table'),
+      key.includes('table'),
     );
 
     const systemPrompt = await getMcpSystemPrompt({
@@ -139,15 +140,19 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       },
 
       onError: (error) => {
+        const message = error instanceof Error ? error.message : String(error);
         sendAiChatFailureEvent({
           projectId,
           userId: request.principal.id,
           chatId,
-          errorMessage: error instanceof Error ? error.message : String(error),
+          errorMessage: message,
           provider: aiConfig.provider,
           model: aiConfig.model,
         });
-        return error instanceof Error ? error.message : String(error);
+
+        endStreamWithErrorMessage(reply.raw, message);
+        logger.warn(message, error);
+        return message;
       },
     });
 
@@ -216,8 +221,8 @@ async function streamMessages(
   aiConfig: AiConfig,
   chatId: string,
   tools: ToolSet,
-  recursionDepth = 0,
 ): Promise<void> {
+  let stepCount = 0;
   const chatHistory = await getSummarizedChatHistory(chatId);
   const result = streamText({
     model: languageModel,
@@ -227,12 +232,21 @@ async function streamMessages(
     tools,
     toolChoice: 'auto',
     maxRetries: 1,
-    async onError({ error }) {
-      const message = error instanceof Error ? error.message : String(error);
-      endStreamWithErrorMessage(dataStreamWriter, message);
-      logger.warn(message, error);
+    maxSteps: MAX_RECURSION_DEPTH,
+    async onStepFinish({ finishReason }): Promise<void> {
+      stepCount++;
+      if (finishReason !== 'stop' && stepCount >= MAX_RECURSION_DEPTH) {
+        const message = `Maximum recursion depth (${MAX_RECURSION_DEPTH}) reached. Terminating recursion.`;
+        endStreamWithErrorMessage(dataStreamWriter, message);
+        logger.warn(message);
+      }
     },
-    async onFinish({ response, usage }) {
+    async onFinish({ response, usage }): Promise<void> {
+      const filteredMessages = removeToolMessages(messages);
+      response.messages.forEach((r) => {
+        filteredMessages.push(getResponseObject(r));
+      });
+    
       await appendMessagesToChatHistory(chatId, response.messages);
       await appendMessagesToSummarizedChatHistory(
         chatId,
@@ -246,26 +260,7 @@ async function streamMessages(
           ),
       );
 
-      const lastMessage = response.messages.at(-1);
-      if (lastMessage && lastMessage.role !== 'assistant') {
-        if (recursionDepth >= maxRecursionDepth) {
-          const message = `Maximum recursion depth (${maxRecursionDepth}) reached. Terminating recursion.`;
-          endStreamWithErrorMessage(dataStreamWriter, message);
-          logger.warn(message);
-          return;
-        }
-
-        logger.debug('Forwarding the message to LLM.');
-        await streamMessages(
-          dataStreamWriter,
-          languageModel,
-          systemPrompt,
-          aiConfig,
-          chatId,
-          tools,
-          recursionDepth + 1,
-        );
-      }
+      await saveChatHistory(chatId, filteredMessages);
     },
   });
 
@@ -273,7 +268,7 @@ async function streamMessages(
 }
 
 function endStreamWithErrorMessage(
-  dataStreamWriter: DataStreamWriter,
+  dataStreamWriter: NodeJS.WritableStream | DataStreamWriter,
   message: string,
 ): void {
   dataStreamWriter.write(`f:{"messageId":"${generateMessageId()}"}\n`);
