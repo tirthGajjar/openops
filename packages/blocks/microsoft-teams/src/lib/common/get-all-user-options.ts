@@ -9,7 +9,7 @@ export async function getAllUserOptions(
 ): Promise<DropdownOption<UserOption>[]> {
   const request: HttpRequest = {
     method: HttpMethod.GET,
-    url: `${system.get(AppSystemProp.OPENOPS_TABLES_API_URL)}/api/members`,
+    url: `${system.get(AppSystemProp.OPENOPS_MS_TEAMS_BOT_URL)}/api/members`,
     queryParams: {
       tenantId,
     },

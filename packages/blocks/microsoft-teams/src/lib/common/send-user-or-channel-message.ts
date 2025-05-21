@@ -22,7 +22,7 @@ export const sendUserOrChannelMessage = async ({
   const request: HttpRequest = {
     method: HttpMethod.POST,
     url: `${system.get(
-      AppSystemProp.OPENOPS_TABLES_API_URL,
+      AppSystemProp.OPENOPS_MS_TEAMS_BOT_URL,
     )}/api/request-action`,
     body: {
       type: usersAndChannels.type,

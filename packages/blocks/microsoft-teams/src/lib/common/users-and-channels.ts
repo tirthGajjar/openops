@@ -23,6 +23,15 @@ export const usersAndChannels = Property.Dropdown({
 
     const tenantId = getTenantIdFromToken(authValue.access_token);
 
+    if (!tenantId) {
+      return {
+        disabled: true,
+        placeholder:
+          'Authentication failed. Please try again. If the problem persists, please contact support',
+        options: [],
+      };
+    }
+
     const userOptions = await getAllUserOptions(tenantId);
 
     const teamIds = await getAllTeams(authValue);

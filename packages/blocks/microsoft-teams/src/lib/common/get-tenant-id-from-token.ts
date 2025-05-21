@@ -3,8 +3,8 @@ export const getTenantIdFromToken = (accessToken: string) => {
     const [, payloadBase64] = accessToken.split('.');
     const payload = JSON.parse(atob(payloadBase64));
 
-    return payload.tid || null;
+    return payload.tid ?? null;
   } catch (error) {
-    throw new Error('Could not parse access token');
+    return null;
   }
 };

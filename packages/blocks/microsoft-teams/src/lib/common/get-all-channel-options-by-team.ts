@@ -10,7 +10,7 @@ export async function getAllChannelOptionsByTeam(
 ): Promise<DropdownOption<ChannelOption>[]> {
   const request: HttpRequest = {
     method: HttpMethod.GET,
-    url: `${system.get(AppSystemProp.OPENOPS_TABLES_API_URL)}/api/channels`,
+    url: `${system.get(AppSystemProp.OPENOPS_MS_TEAMS_BOT_URL)}/api/channels`,
     queryParams: {
       tenantId,
       teamIds: teamIds.join(','),
