@@ -125,10 +125,7 @@ export const requestActionMessageAction = createAction({
     }
 
     return await onActionReceived({
-      chatOrChannel,
       messageObj,
-      header,
-      message,
       actions,
       context,
     });

@@ -5,13 +5,9 @@ import {
   TeamsMessageAction,
   TeamsMessageButton,
 } from './generate-message-with-buttons';
-import { updateChatOrChannelMessage } from './update-chat-or-channel-message';
 
 export const onActionReceived = async ({
-  chatOrChannel,
   messageObj,
-  header,
-  message,
   actions,
   context,
 }: {
@@ -27,21 +23,10 @@ export const onActionReceived = async ({
   const isResumedDueToButtonClicked = !!resumePayload?.button;
 
   if (!isResumedDueToButtonClicked) {
-    const updatedMessage = await updateChatOrChannelMessage({
-      accessToken: context.auth.access_token,
-      chatOrChannel,
-      header,
-      message,
-      actions,
-      enableActions: false,
-      additionalText: 'The time to act on this message has expired.',
-      messageId: messageObj.id,
-    });
-
     return {
       action: '',
       isExpired: true,
-      message: updatedMessage,
+      message: messageObj,
     };
   }
 
@@ -74,20 +59,9 @@ export const onActionReceived = async ({
     };
   }
 
-  const updatedMessage = await updateChatOrChannelMessage({
-    accessToken: context.auth.access_token,
-    chatOrChannel,
-    header,
-    message,
-    actions,
-    enableActions: false,
-    additionalText: `Action received, "${resumePayload.button}" button was clicked!`,
-    messageId: messageObj.id,
-  });
-
   return {
     action: resumePayload.button,
-    message: updatedMessage,
+    message: messageObj,
     isExpired: false,
   };
 };
