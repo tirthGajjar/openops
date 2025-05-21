@@ -24,7 +24,7 @@ export const onActionReceived = async ({
 }) => {
   const resumePayload = context.resumePayload
     ?.queryParams as unknown as InteractionPayload;
-  const isResumedDueToButtonClicked = resumePayload && resumePayload.button;
+  const isResumedDueToButtonClicked = !!resumePayload?.button;
 
   if (!isResumedDueToButtonClicked) {
     const updatedMessage = await updateChatOrChannelMessage({

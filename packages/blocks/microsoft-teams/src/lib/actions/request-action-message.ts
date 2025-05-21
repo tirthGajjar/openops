@@ -112,7 +112,7 @@ export const requestActionMessageAction = createAction({
       );
     }
 
-    const messageObj: any | null = await context.store.get(
+    const messageObj: any = await context.store.get(
       `teamsMessage_${context.currentExecutionPath}`,
       StoreScope.FLOW_RUN,
     );
