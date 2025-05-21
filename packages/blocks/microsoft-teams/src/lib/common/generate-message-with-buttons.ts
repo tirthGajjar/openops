@@ -38,7 +38,7 @@ export function generateMessageWithButtons({
 }): TeamsMessageWithActionsPayload {
   const rawAdaptiveCard = {
     type: 'AdaptiveCard',
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+    $schema: 'https://adaptivecards.io/schemas/adaptive-card.json',
     version: '1.4',
     body: [
       {
