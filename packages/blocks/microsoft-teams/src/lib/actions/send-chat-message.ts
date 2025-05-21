@@ -45,6 +45,6 @@ export const sendChatMessageAction = createAction({
       },
     };
 
-    return await client.api(`/chats/${chatId.id}/messages`).post(chatMessage);
+    return await client.api(`/chats/${chatId}/messages`).post(chatMessage);
   },
 });
