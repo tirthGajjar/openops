@@ -50,14 +50,14 @@ export const requestActionMessageAction = createAction({
           required: true,
         }),
         buttonStyle: Property.StaticDropdown({
-          displayName: 'Button type',
+          displayName: 'Button color',
           required: true,
           defaultValue: 'default',
           options: {
             options: [
-              { label: 'Positive', value: 'positive' },
-              { label: 'Destructive', value: 'destructive' },
-              { label: 'Default', value: 'default' },
+              { label: 'Blue', value: 'positive' },
+              { label: 'Red', value: 'destructive' },
+              { label: 'Transparent', value: 'default' },
             ],
           },
         }),

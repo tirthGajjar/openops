@@ -27,7 +27,7 @@ export async function getAllChatOptions(
   return options;
 }
 
-export const CHAT_TYPE = {
+export const PRIVATE_CHAT_KIND = {
   oneOnOne: '1 : 1',
   group: 'Group',
   meeting: 'Meeting',
@@ -46,7 +46,9 @@ async function populateChatOptions(
       .join(',');
 
   options.push({
-    label: `(${CHAT_TYPE[elem.chatType!]} Chat) ${chatName ?? '(no title)'}`,
+    label: `(${PRIVATE_CHAT_KIND[elem.chatType!]} Chat) ${
+      chatName ?? '(no title)'
+    }`,
     value: {
       id: elem.id!,
       type: ChatTypes.CHAT,
