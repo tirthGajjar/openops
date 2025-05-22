@@ -71,6 +71,15 @@ For detailed documentation, visit our [documentation portal](https://docs.openop
 * [OpenOps Tables](https://docs.openops.com/reporting-analytics/tables)
 * [OpenOps Analytics](https://docs.openops.com/reporting-analytics/data-visualization)
 
+## **🛠️ API Documentation**
+
+OpenOps provides Swagger (OpenAPI) documentation for all APIs:
+
+* **Main API**: Available at `/docs` when running the API server (http://localhost:3000/docs)
+* **Engine API**: Available at `/docs` when running the engine service (http://localhost:3005/docs)
+
+These documentation endpoints allow you to explore and test the API endpoints directly from your browser.
+
 ## **🤝 Contributing**
 
 We welcome contributions to OpenOps\! See our [contributing guide](./CONTRIBUTING.md) for details.

@@ -1,4 +1,6 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import {
   blocksBuilder,
   logger,
@@ -20,7 +22,23 @@ const engineController: FastifyPluginAsyncTypebox = async (fastify) => {
     '/execute',
     {
       schema: {
+        description: 'Execute an engine operation',
+        tags: ['engine'],
         body: EngineRequest,
+        response: {
+          200: {
+            description: 'Successful response',
+            type: 'object',
+          },
+          500: {
+            description: 'Error response',
+            type: 'object',
+            properties: {
+              status: { type: 'string' },
+              message: { type: 'string' },
+            },
+          },
+        },
       },
     },
     async (request, reply) => {
@@ -67,6 +85,32 @@ export const start = async (): Promise<void> => {
     setStopHandlers(app);
 
     await blocksBuilder();
+
+    // Register Swagger
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: 'OpenOps Engine API',
+          description: 'API for OpenOps Engine operations',
+          version: '1.0.0',
+        },
+        servers: [
+          {
+            url: 'http://localhost:3005',
+            description: 'Local Engine Server',
+          },
+        ],
+      },
+    });
+
+    // Register Swagger UI
+    await app.register(swaggerUi, {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: true,
+      },
+    });
 
     await app.register(engineController);
 

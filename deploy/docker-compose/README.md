@@ -11,6 +11,15 @@ This is a docker compose deployment of the OpenOps platform.
 3. Copy the `.env.defaults` file to `.env` and edit it to set the correct values for the environment variables. Make sure to change the default passwords.
 4. Run `docker-compose up -d`
 
+# API Documentation
+
+OpenOps provides Swagger (OpenAPI) documentation for all APIs:
+
+* **Main API**: Available at `http://localhost:3000/docs`
+* **Engine API**: Available at `http://localhost:3005/docs`
+
+These documentation endpoints allow you to explore and test the API endpoints directly from your browser.
+
 
 # Connections
 
