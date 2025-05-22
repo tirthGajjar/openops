@@ -12,13 +12,17 @@ import {
 } from '@openops/shared';
 import {
   CoreMessage,
+  createDataStream,
   DataStreamWriter,
   LanguageModel,
   pipeDataStreamToResponse,
   streamText,
+  StreamTextResult,
   ToolSet,
 } from 'ai';
 import { StatusCodes } from 'http-status-codes';
+import { ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
 import { encryptUtils } from '../../helper/encryption';
 import {
   sendAiChatFailureEvent,
@@ -45,7 +49,6 @@ const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
 );
 
-const MAX_RECURSION_DEPTH = 10;
 export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   app.post(
     '/open',
@@ -124,7 +127,41 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       isAnalyticsLoaded,
       isTablesLoaded,
     });
-    logger.debug({ systemPrompt }, 'systemPrompt');
+    // logger.debug({ systemPrompt }, 'systemPrompt');
+
+    const retries = { currentIteration: 0 };
+    // const dataStream = createDataStream({
+    //   execute: async (dataStreamWriter) => {
+    //     logger.debug('Send user message to LLM.');
+    //     await streamMessages(
+    //       dataStreamWriter,
+    //       languageModel,
+    //       systemPrompt,
+    //       aiConfig,
+    //       chatId,
+    //       tools,
+    //       retries,
+    //     );
+    //   },
+    //   onError: (error) => {
+    //     const errorMessage =
+    //       error instanceof Error ? error.message : String(error);
+    //     if (retries.currentIteration < 2) {
+    //       return '';
+    //     }
+    //
+    //     endStreamWithErrorMessage(reply.raw, errorMessage);
+    //     logger.debug(errorMessage, error);
+    //     return '';
+    //   },
+    // });
+    //
+    // void reply.header('X-Vercel-AI-Data-Stream', 'v1');
+    // void reply.header('Content-Type', 'text/plain; charset=utf-8');
+    //
+    // const nodeStream = Readable.fromWeb(dataStream as any);
+    //
+    // return reply.send(nodeStream);
 
     pipeDataStreamToResponse(reply.raw, {
       execute: async (dataStreamWriter) => {
@@ -136,32 +173,28 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
           aiConfig,
           chatId,
           tools,
+          retries,
         );
       },
-
       onError: (error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        sendAiChatFailureEvent({
-          projectId,
-          userId: request.principal.id,
-          chatId,
-          errorMessage: message,
-          provider: aiConfig.provider,
-          model: aiConfig.model,
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        if (retries.currentIteration < 2) {
+          return '';
+        }
 
-        endStreamWithErrorMessage(reply.raw, message);
-        logger.warn(message, error);
-        return message;
+        endStreamWithErrorMessage(reply.raw, errorMessage);
+        logger.debug(errorMessage, error);
+        return '';
       },
     });
 
-    sendAiChatMessageSendEvent({
-      projectId,
-      userId: request.principal.id,
-      chatId,
-      provider: aiConfig.provider,
-    });
+    // sendAiChatMessageSendEvent({
+    //   projectId,
+    //   userId: request.principal.id,
+    //   chatId,
+    //   provider: aiConfig.provider,
+    // });
   });
 
   app.delete('/:chatId', DeleteChatOptions, async (request, reply) => {
@@ -221,9 +254,11 @@ async function streamMessages(
   aiConfig: AiConfig,
   chatId: string,
   tools: ToolSet,
+  retry: { currentIteration: number },
 ): Promise<void> {
   let stepCount = 0;
   const chatHistory = await getSummarizedChatHistory(chatId);
+
   const result = streamText({
     model: languageModel,
     system: systemPrompt,
@@ -232,35 +267,54 @@ async function streamMessages(
     tools,
     toolChoice: 'auto',
     maxRetries: 1,
-    maxSteps: MAX_RECURSION_DEPTH,
+    maxSteps: maxRecursionDepth,
     async onStepFinish({ finishReason }): Promise<void> {
       stepCount++;
-      if (finishReason !== 'stop' && stepCount >= MAX_RECURSION_DEPTH) {
-        const message = `Maximum recursion depth (${MAX_RECURSION_DEPTH}) reached. Terminating recursion.`;
+      if (finishReason !== 'stop' && stepCount >= maxRecursionDepth) {
+        const message = `Maximum recursion depth (${maxRecursionDepth}) reached. Terminating recursion.`;
         endStreamWithErrorMessage(dataStreamWriter, message);
         logger.warn(message);
       }
     },
-    async onFinish({ response, usage }): Promise<void> {
-      const filteredMessages = removeToolMessages(messages);
-      response.messages.forEach((r) => {
-        filteredMessages.push(getResponseObject(r));
-      });
-    
-      await appendMessagesToChatHistory(chatId, response.messages);
-      await appendMessagesToSummarizedChatHistory(
-        chatId,
-        response.messages,
-        (existingMessages) =>
-          summarizeMessages(
-            languageModel,
-            aiConfig,
-            existingMessages,
-            usage.totalTokens,
-          ),
-      );
+    async onError({ error }) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
-      await saveChatHistory(chatId, filteredMessages);
+      retry.currentIteration = retry.currentIteration + 1;
+      if (errorMessage.includes('tokens') && retry.currentIteration < 2) {
+        await appendMessagesToSummarizedChatHistory(
+          chatId,
+          [],
+          async (existingMessages) => {
+            const lastMessage = existingMessages.at(-1);
+
+            const summary = await summarizeMessages(
+              languageModel,
+              aiConfig,
+              existingMessages,
+            );
+            if (lastMessage && lastMessage.role === 'user') {
+              summary.push(lastMessage);
+            }
+
+            return summary;
+          },
+        );
+
+        await streamMessages(
+          dataStreamWriter,
+          languageModel,
+          systemPrompt,
+          aiConfig,
+          chatId,
+          tools,
+          retry,
+        );
+      }
+    },
+    async onFinish({ response }): Promise<void> {
+      await appendMessagesToChatHistory(chatId, response.messages);
+      await appendMessagesToSummarizedChatHistory(chatId, response.messages);
     },
   });
 

@@ -5,68 +5,106 @@ import { CoreMessage, generateText, LanguageModel } from 'ai';
 function getHistoryMaxTokens(aiConfig: AiConfig): number {
   const modelMax = aiConfig.modelSettings?.maxTokens;
   if (typeof modelMax === 'number') {
-    return modelMax / 2;
+    return modelMax;
   }
+  //
+  // return system.getNumberOrThrow(AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY);
 
-  const defaultMax = system.getNumberOrThrow(
-    AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY,
-  );
-  return defaultMax / 2;
+  return 2000;
 }
 
-const historyMaxMessages = getHistoryMaxMessages();
-function getHistoryMaxMessages(): number {
-  return system.getNumberOrThrow(AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY);
-}
+// const historyMaxMessages = getHistoryMaxMessages();
+// function getHistoryMaxMessages(): number {
+//   return system.getNumberOrThrow(AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY);
+// }
 
-async function getSummaryMessage(
-  languageModel: LanguageModel,
-  aiConfig: AiConfig,
-  messages: CoreMessage[],
-  maxTokens: number,
-): Promise<{ text: string }> {
-  const systemPrompt =
-    'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
-
-  return generateText({
-    model: languageModel,
-    system: systemPrompt,
-    messages,
-    ...aiConfig.modelSettings,
-    maxTokens,
-  });
-}
+// async function getSummaryMessage(
+//   languageModel: LanguageModel,
+//   aiConfig: AiConfig,
+//   messages: CoreMessage[],
+//   maxTokens: number,
+// ): Promise<{ text: string }> {
+//   const systemPrompt =
+//     'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
+//
+//   return generateText({
+//     model: languageModel,
+//     system: systemPrompt,
+//     messages,
+//     ...aiConfig.modelSettings,
+//     maxTokens,
+//   });
+// }
+//
+// export async function summarizeMessages(
+//   languageModel: LanguageModel,
+//   aiConfig: AiConfig,
+//   messages: CoreMessage[],
+//   totalTokens: number,
+// ): Promise<CoreMessage[]> {
+//   const maxTokens = getHistoryMaxTokens(aiConfig);
+//   let debugMessage = `Token count ${totalTokens}, which exceeds the configured limit of ${maxTokens}. Summarizing messages.`;
+//
+//   if (isNaN(totalTokens)) {
+//     debugMessage = `Message count is ${messages.length}, which exceeds the configured limit of ${historyMaxMessages}. Summarizing messages.`;
+//     logger.debug(
+//       `The model is not providing token usage. Checking if the number of messages exceeds ${historyMaxMessages}.`,
+//     );
+//
+//     if (messages.length < historyMaxMessages) {
+//       return messages;
+//     }
+//   } else if (totalTokens < maxTokens) {
+//     return messages;
+//   }
+//
+//   logger.info(debugMessage);
+//
+//   const summaryMaxTokens = maxTokens / 2;
+//   // const { text } = await getSummaryMessage(
+//   //   languageModel,
+//   //   aiConfig,
+//   //   messages,
+//   //   summaryMaxTokens,
+//   // );
+//   //
+//   // return [
+//   //   {
+//   //     role: 'system',
+//   //     content: `The following is a summary of the previous conversation: ${text}`,
+//   //   },
+//   // ];
+//
+//   return requestSummaryMessage(
+//     languageModel,
+//     aiConfig,
+//     messages,
+//     summaryMaxTokens,
+//   );
+// }
 
 export async function summarizeMessages(
   languageModel: LanguageModel,
   aiConfig: AiConfig,
   messages: CoreMessage[],
-  totalTokens: number,
 ): Promise<CoreMessage[]> {
-  const maxTokens = getHistoryMaxTokens(aiConfig);
-  let debugMessage = `Token count ${totalTokens}, which exceeds the configured limit of ${maxTokens}. Summarizing messages.`;
+  // const { text } = await getSummaryMessage(
+  //   languageModel,
+  //   aiConfig,
+  //   messages,
+  //   summaryMaxTokens,
+  // );
 
-  if (isNaN(totalTokens)) {
-    debugMessage = `Message count is ${messages.length}, which exceeds the configured limit of ${historyMaxMessages}. Summarizing messages.`;
-    logger.debug(
-      `The model is not providing token usage. Checking if the number of messages exceeds ${historyMaxMessages}.`,
-    );
+  const systemPrompt =
+    'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
 
-    if (messages.length < historyMaxMessages) {
-      return messages;
-    }
-  } else if (totalTokens < maxTokens) {
-    return messages;
-  }
-
-  logger.info(debugMessage);
-
-  const { text } = await getSummaryMessage(
-    languageModel,
-    aiConfig,
+  const { text } = await generateText({
+    model: languageModel,
+    system: systemPrompt,
     messages,
-    maxTokens,
-  );
+    ...aiConfig.modelSettings,
+    maxTokens: getHistoryMaxTokens(aiConfig),
+  });
 
   return [
     {
