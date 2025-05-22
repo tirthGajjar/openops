@@ -56,6 +56,20 @@ export type WorkflowImport = Static<typeof WorkflowImportSchema>;
 export const workflowImportValidator = TypeCompiler.Compile(WorkflowImportSchema);
 
 /**
+ * Input type for workflow import validation
+ */
+export type WorkflowImportInput = {
+  displayName: string;
+  description?: string;
+  template: {
+    displayName: string;
+    trigger: Trigger;
+    valid: boolean;
+  };
+  [key: string]: unknown; // Allow additional properties for flexible validation
+};
+
+/**
  * Validate a workflow import object
  * 
  * @param workflowImport The workflow import object to validate
@@ -90,18 +104,19 @@ export const workflowImportValidator = TypeCompiler.Compile(WorkflowImportSchema
  * }
  * ```
  */
-export function validateWorkflowImport(workflowImport: unknown): {
+export function validateWorkflowImport(workflowImport: WorkflowImportInput): {
   success: boolean;
   errors?: string[];
 } {
   try {
-    const isValid = workflowImportValidator.Check(workflowImport);
+    // Perform validation once and collect errors in a single pass
+    const errors = Array.from(workflowImportValidator.Errors(workflowImport));
     
-    if (!isValid) {
-      const errors = Array.from(workflowImportValidator.Errors(workflowImport)).map(
-        (error) => `${error.path}: ${error.message}`
-      );
-      return { success: false, errors };
+    if (errors.length > 0) {
+      return { 
+        success: false, 
+        errors: errors.map(error => `${error.path}: ${error.message}`)
+      };
     }
     
     return { success: true };
