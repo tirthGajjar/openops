@@ -89,7 +89,7 @@ export const requestActionMessageAction = createAction({
         const queryParams: Record<string, string> = {
           executionCorrelationId: context.run.pauseId,
           button: action.buttonText,
-          test: context.run.isTest ? 'true' : undefined,
+          test: context.run.isTest,
         };
         
         return {
