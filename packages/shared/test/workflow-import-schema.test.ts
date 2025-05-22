@@ -8,7 +8,6 @@ describe('WorkflowImportSchema', () => {
   let sampleWorkflow: any;
   
   beforeAll(() => {
-    // Load sample workflow from e2e tests
     const samplePath = path.resolve(
       __dirname, 
       '../../tests-e2e/assets/workflow-with-all-simple-nested-blocks.json'
@@ -36,7 +35,6 @@ describe('WorkflowImportSchema', () => {
   });
 
   test('should validate a workflow with all action types', () => {
-    // Create a test workflow with all action types
     const workflow = {
       ...sampleWorkflow,
       template: {
