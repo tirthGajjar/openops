@@ -116,11 +116,9 @@ const sendMessageAskingForAction = async (
         actionClicked: action.buttonText,
       };
       
-      if (context.run.isTest) {
-        queryParams.test = 'true';
-      }
+      queryParams.test = context.run.isTest;
       
-      const redirectUrl = `${baseUrl}/static/request-action-redirect.html`;
+      const redirectUrl = 'https://static.openops.com/request-action-redirect.html';
       action.url = context.generateResumeUrl(
         {
           queryParams: queryParams,
