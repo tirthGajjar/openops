@@ -275,7 +275,7 @@ describe('requestActionMessageAction', () => {
       expect(result.eventPayload.interactionsDisabled).toBe(true);
     });
 
-    test('should assign static test url to actions in test mode when interactions are disabled', async () => {
+    test('should assign resumeUrl with test parameter to actions in test mode when interactions are disabled', async () => {
       getBooleanMock.mockReturnValueOnce(false);
       waitForInteractionMock.mockImplementation(async (messageObj: any) =>
         Promise.resolve({ ...messageObj }),
@@ -285,6 +285,12 @@ describe('requestActionMessageAction', () => {
       );
       const mockContext = buildMockContext('Header Text', true);
       mockContext.run.isTest = true;
+      mockContext.generateResumeUrl.mockImplementation(
+        ({ queryParams }: any) => {
+          const query = new URLSearchParams(queryParams).toString();
+          return `https://example.com/resume?${query}`;
+        },
+      );
 
       const result = (await requestActionMessageAction.run(mockContext)) as any;
 
@@ -292,9 +298,10 @@ describe('requestActionMessageAction', () => {
       expect(actionBlock).toBeDefined();
       const action = actionBlock.elements[0];
 
-      expect(action.url).toBe(
-        'https://static.openops.com/test_slack_interactions.txt',
-      );
+      expect(action.url).toBeDefined();
+      expect(action.url).toContain('https://example.com/resume?');
+      expect(action.url).toContain('actionClicked=Approve');
+      expect(action.url).toContain('test=true');
       expect(result.eventPayload.interactionsDisabled).toBe(true);
     });
 

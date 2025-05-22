@@ -111,17 +111,21 @@ const sendMessageAskingForAction = async (
     const baseUrl = await networkUtls.getPublicUrl();
 
     actions.forEach((action: SlackActionDefinition) => {
-      action.url = context.run.isTest
-        ? 'https://static.openops.com/test_slack_interactions.txt'
-        : context.generateResumeUrl(
-            {
-              queryParams: {
-                executionCorrelationId: context.run.pauseId,
-                actionClicked: action.buttonText,
-              },
-            },
-            baseUrl,
-          );
+      const queryParams: Record<string, string> = {
+        executionCorrelationId: context.run.pauseId,
+        actionClicked: action.buttonText,
+      };
+      
+      if (context.run.isTest) {
+        queryParams.test = 'true';
+      }
+      
+      action.url = context.generateResumeUrl(
+        {
+          queryParams: queryParams,
+        },
+        baseUrl,
+      );
     });
   }
 
