@@ -1,7 +1,9 @@
+import { HttpMethod } from '@openops/blocks-common';
 import { Property, createAction } from '@openops/blocks-framework';
 import { convertToStringArrayWithValidation } from '@openops/shared';
+import FormData from 'form-data';
 import { JiraAuth, jiraCloudAuth } from '../../auth';
-import { getPriorities, updateJiraIssue } from '../common';
+import { getPriorities, sendJiraRequest, updateJiraIssue } from '../common';
 import {
   getIssueIdDropdown,
   getIssueTypeIdDropdown,
@@ -64,6 +66,11 @@ export const updateIssueAction = createAction({
       required: false,
     }),
     labels: getLabelDropdown(),
+    attachments: Property.File({
+      displayName: 'Attachments',
+      description: 'File to attach to the issue',
+      required: false,
+    }),
   },
   run: async ({ auth, propsValue }) => {
     const {
@@ -75,9 +82,10 @@ export const updateIssueAction = createAction({
       priority,
       parentKey,
       labels,
+      attachments,
     } = propsValue;
 
-    return await updateJiraIssue({
+    const updatedIssue = await updateJiraIssue({
       auth,
       issueId,
       summary,
@@ -93,5 +101,25 @@ export const updateIssueAction = createAction({
             'Labels must be a string or an array of strings',
           ),
     });
+
+    // If attachments are provided, upload them to the issue
+    if (attachments) {
+      const formData = new FormData();
+      const fileBuffer = Buffer.from(attachments.base64, 'base64');
+      formData.append('file', fileBuffer, attachments.filename);
+
+      await sendJiraRequest({
+        method: HttpMethod.POST,
+        url: `issue/${issueId}/attachments`,
+        auth,
+        headers: {
+          'X-Atlassian-Token': 'no-check',
+          ...formData.getHeaders(),
+        },
+        body: formData,
+      });
+    }
+
+    return updatedIssue;
   },
 });

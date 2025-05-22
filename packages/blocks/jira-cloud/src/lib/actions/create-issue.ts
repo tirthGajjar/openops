@@ -1,12 +1,14 @@
 import { createAction, Property } from '@openops/blocks-framework';
 import { convertToStringArrayWithValidation } from '@openops/shared';
 import validator, { isEmpty } from 'validator';
+import FormData from 'form-data';
 import { JiraAuth, jiraCloudAuth } from '../../auth';
 import {
   createJiraIssue,
   getPriorities,
   JiraUser,
   searchUserByCriteria,
+  sendJiraRequest,
 } from '../common';
 import {
   getIssueTypeIdDropdown,
@@ -14,6 +16,7 @@ import {
   getProjectIdDropdown,
   getUsersDropdown,
 } from '../common/props';
+import { HttpMethod } from '@openops/blocks-common';
 
 export const createIssue = createAction({
   name: 'create_issue',
@@ -65,6 +68,11 @@ export const createIssue = createAction({
       required: false,
     }),
     labels: getLabelDropdown(),
+    attachments: Property.File({
+      displayName: 'Attachments',
+      description: 'File to attach to the issue',
+      required: false,
+    }),
   },
   run: async ({ auth, propsValue }) => {
     const {
@@ -75,6 +83,7 @@ export const createIssue = createAction({
       priority,
       parentKey,
       labels,
+      attachments,
     } = propsValue;
 
     let assignee = propsValue.assignee;
@@ -88,7 +97,7 @@ export const createIssue = createAction({
       assignee = resultUser[0].accountId;
     }
 
-    return await createJiraIssue({
+    const createdIssue = await createJiraIssue({
       auth,
       projectId: projectId as string,
       summary,
@@ -104,5 +113,25 @@ export const createIssue = createAction({
             'Labels must be a string or an array of strings',
           ),
     });
+
+    // If attachments are provided, upload them to the issue
+    if (attachments) {
+      const formData = new FormData();
+      const fileBuffer = Buffer.from(attachments.base64, 'base64');
+      formData.append('file', fileBuffer, attachments.filename);
+
+      await sendJiraRequest({
+        method: HttpMethod.POST,
+        url: `issue/${createdIssue.key}/attachments`,
+        auth,
+        headers: {
+          'X-Atlassian-Token': 'no-check',
+          ...formData.getHeaders(),
+        },
+        body: formData,
+      });
+    }
+
+    return createdIssue;
   },
 });
