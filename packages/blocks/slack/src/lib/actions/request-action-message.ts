@@ -120,11 +120,12 @@ const sendMessageAskingForAction = async (
         queryParams.test = 'true';
       }
       
+      const redirectUrl = `${baseUrl}/static/request-action-redirect.html`;
       action.url = context.generateResumeUrl(
         {
           queryParams: queryParams,
         },
-        baseUrl,
+        redirectUrl,
       );
     });
   }

@@ -83,6 +83,8 @@ export const requestActionMessageAction = createAction({
     if (context.executionType === ExecutionType.BEGIN) {
       const baseUrl = await networkUtls.getPublicUrl();
 
+      const redirectUrl = `${baseUrl}/static/request-action-redirect.html`;
+
       const preparedActions: TeamsMessageButton[] = actions.map((action) => {
         const queryParams: Record<string, string> = {
           executionCorrelationId: context.run.pauseId,
@@ -96,7 +98,7 @@ export const requestActionMessageAction = createAction({
             {
               queryParams: queryParams,
             },
-            baseUrl,
+            redirectUrl,
           ),
         };
       });
