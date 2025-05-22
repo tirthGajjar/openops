@@ -22,6 +22,7 @@ import {
   Trigger,
   UNCATEGORIZED_FOLDER_ID,
   UserId,
+  validateWorkflowImport,
 } from '@openops/shared';
 import { EntityManager, In, IsNull } from 'typeorm';
 import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service';
@@ -67,6 +68,28 @@ export const flowService = {
     connectionIds,
     isSample,
   }: CreateFromTemplateParams): Promise<PopulatedFlow> {
+    // Validate the workflow template before processing
+    const workflowImport = {
+      displayName,
+      description,
+      template: {
+        displayName,
+        trigger,
+        valid: true,
+      },
+    };
+    
+    const validationResult = validateWorkflowImport(workflowImport);
+    
+    if (!validationResult.success) {
+      throw new ApplicationError({
+        code: ErrorCode.VALIDATION,
+        params: {
+          message: `Invalid workflow template structure: ${validationResult.errors?.join(', ')}`,
+        },
+      });
+    }
+
     const newFlow = await create({
       userId,
       projectId,
