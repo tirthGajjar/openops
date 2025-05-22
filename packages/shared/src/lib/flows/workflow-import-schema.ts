@@ -2,6 +2,7 @@ import { Static, Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Action } from './actions/action';
 import { Trigger } from './triggers/trigger';
+import { FlowTemplateMetadata } from './dto/flow-template-request';
 
 /**
  * Schema for workflow import validation
@@ -31,26 +32,17 @@ export type WorkflowTemplate = Static<typeof WorkflowTemplateSchema>;
  * The workflow import schema validates the top-level workflow object
  * 
  * This schema validates the structure of imported workflows, including:
- * - Basic metadata (name, description, tags)
+ * - Metadata from FlowTemplateMetadata (name, description, tags, etc.)
  * - Template with trigger and actions
  * - Recursive action structures (via the Action type from action.ts)
  */
-export const WorkflowImportSchema = Type.Object({
-  // Common workflow metadata
-  name: Type.String(),
-  description: Type.Optional(Type.String()),
-  tags: Type.Optional(Type.Array(Type.String())),
-  
-  // Timestamps (as string for compatibility)
-  created: Type.Optional(Type.String()),
-  updated: Type.Optional(Type.String()),
-  
-  // Optional blocks array for workflow definitions
-  blocks: Type.Optional(Type.Array(Type.Any())),
-  
-  // The template contains the trigger and actions
-  template: WorkflowTemplateSchema,
-});
+export const WorkflowImportSchema = Type.Composite([
+  Type.Omit(FlowTemplateMetadata, ['id', 'type', 'projectId', 'organizationId']), // Using existing metadata but omitting server-specific fields
+  Type.Object({
+    // The template contains the trigger and actions
+    template: WorkflowTemplateSchema,
+  }),
+]);
 
 export type WorkflowImport = Static<typeof WorkflowImportSchema>;
 
