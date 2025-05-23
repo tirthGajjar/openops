@@ -34,9 +34,7 @@ COPY --link package.json package-lock.json .npmrc ./
 RUN npm ci --no-audit --no-fund
 
 # Fix for high UID/GID values in npm packages causing Docker pull issues
-RUN find /usr/src/app/node_modules -type d -exec chmod 755 {} \; && \
-    find /usr/src/app/node_modules -type f -exec chmod 644 {} \; && \
-    chown -R root:root /usr/src/app/node_modules
+RUN find $(pwd) -name node_modules -type d -exec sh -c 'find {} -type d -exec chmod 755 {} \; && find {} -type f -exec chmod 644 {} \; && chown -R root:root {}' \;
 
 COPY --link dist dist
 
