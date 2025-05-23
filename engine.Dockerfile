@@ -88,6 +88,12 @@ ENV PATH=/tmp/npm-global:$PATH
 
 COPY --link package.json package-lock.json .npmrc ./
 RUN npm ci --no-audit --no-fund
+
+# Fix for high UID/GID values in npm packages causing Docker pull issues
+RUN find /var/task/node_modules -type d -exec chmod 755 {} \; && \
+    find /var/task/node_modules -type f -exec chmod 644 {} \; && \
+    chown -R root:root /var/task/node_modules
+
 COPY --link dist/packages/engine .
 COPY --link dist dist
 
