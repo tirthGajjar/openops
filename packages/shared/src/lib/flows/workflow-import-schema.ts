@@ -1,14 +1,6 @@
-import { Static, Type } from '@sinclair/typebox';
+import { Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import { Trigger } from './triggers/trigger';
-
-export const WorkflowTemplateSchema = Type.Object({
-  displayName: Type.String(),
-  trigger: Trigger,
-  valid: Type.Boolean(),
-});
-
-export type WorkflowTemplate = Static<typeof WorkflowTemplateSchema>;
 
 export const triggerValidator = TypeCompiler.Compile(Trigger);
 
