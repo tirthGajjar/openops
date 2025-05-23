@@ -1,7 +1,6 @@
 import { Static, Type } from '@sinclair/typebox';
 import { BlockType, PackageType, VersionType } from '../../blocks';
 import { SampleDataSettingsObject } from '../sample-data';
-import { Action } from '../actions/action';
 
 export const AUTHENTICATION_PROPERTY_NAME = 'auth';
 
@@ -15,7 +14,7 @@ const commonProps = {
   name: Type.String({}),
   valid: Type.Boolean({}),
   displayName: Type.String({}),
-  nextAction: Type.Optional(Action),
+  nextAction: Type.Optional(Type.Any()),
 };
 
 export const EmptyTrigger = Type.Object({
