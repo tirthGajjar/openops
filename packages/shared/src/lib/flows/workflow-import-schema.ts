@@ -1,8 +1,9 @@
-import { Type } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { Action } from './actions/action';
 import { Trigger } from './triggers/trigger';
 
-export const triggerValidator = TypeCompiler.Compile(Trigger);
+const actionValidator = TypeCompiler.Compile(Action);
+const triggerValidator = TypeCompiler.Compile(Trigger);
 
 export function validateTriggerImport(triggerImport: Trigger): {
   success: boolean;
@@ -10,6 +11,12 @@ export function validateTriggerImport(triggerImport: Trigger): {
 } {
   try {
     const errors = Array.from(triggerValidator.Errors(triggerImport));
+
+    if (triggerImport.nextAction) {
+      errors.push(
+        ...Array.from(actionValidator.Errors(triggerImport.nextAction)),
+      );
+    }
 
     if (errors.length > 0) {
       return {
