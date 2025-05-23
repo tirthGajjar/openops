@@ -575,6 +575,7 @@ async function update({
           description: lastVersionWithArtifacts.description ?? '',
         });
 
+        // Duplicate the artifacts from the previous version, otherwise they will be deleted during update operation
         lastVersion = await flowVersionService.applyOperation({
           userId,
           projectId,
