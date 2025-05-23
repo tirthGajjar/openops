@@ -68,27 +68,6 @@ export const flowService = {
     connectionIds,
     isSample,
   }: CreateFromTemplateParams): Promise<PopulatedFlow> {
-    const workflowImport = {
-      displayName,
-      description,
-      template: {
-        displayName,
-        trigger,
-        valid: true,
-      },
-    };
-    
-    const validationResult = validateWorkflowImport(workflowImport);
-    
-    if (!validationResult.success) {
-      throw new ApplicationError({
-        code: ErrorCode.VALIDATION,
-        params: {
-          message: `Invalid workflow template structure: ${validationResult.errors?.join(', ')}`,
-        },
-      });
-    }
-
     const newFlow = await create({
       userId,
       projectId,
