@@ -22,7 +22,6 @@ import {
   Trigger,
   UNCATEGORIZED_FOLDER_ID,
   UserId,
-  validateWorkflowImport,
 } from '@openops/shared';
 import { EntityManager, In, IsNull } from 'typeorm';
 import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service';
@@ -475,29 +474,6 @@ async function create({
   projectId,
   request,
 }: CreateParams): Promise<PopulatedFlow> {
-  if (request.trigger) {
-    const workflowImport = {
-      displayName: request.displayName,
-      description: request.description,
-      template: {
-        displayName: request.displayName,
-        trigger: request.trigger,
-        valid: true,
-      },
-    };
-    
-    const validationResult = validateWorkflowImport(workflowImport);
-    
-    if (!validationResult.success) {
-      throw new ApplicationError({
-        code: ErrorCode.VALIDATION,
-        params: {
-          message: `Invalid workflow structure: ${validationResult.errors?.join(', ')}`,
-        },
-      });
-    }
-  }
-
   const folderId =
     isNil(request.folderId) || request.folderId === UNCATEGORIZED_FOLDER_ID
       ? null
@@ -535,29 +511,6 @@ async function update({
   operation,
   lock = true,
 }: UpdateParams): Promise<PopulatedFlow> {
-  if (operation.type === FlowOperationType.IMPORT_FLOW) {
-    const workflowImport = {
-      displayName: operation.request.displayName,
-      description: operation.request.description,
-      template: {
-        displayName: operation.request.displayName,
-        trigger: operation.request.trigger,
-        valid: true,
-      },
-    };
-    
-    const validationResult = validateWorkflowImport(workflowImport);
-    
-    if (!validationResult.success) {
-      throw new ApplicationError({
-        code: ErrorCode.VALIDATION,
-        params: {
-          message: `Invalid workflow structure: ${validationResult.errors?.join(', ')}`,
-        },
-      });
-    }
-  }
-
   const flowLock = lock
     ? await distributedLock.acquireLock({
         key: id,
