@@ -494,8 +494,32 @@ export const flowService = {
 
 async function create({
   projectId,
+  userId,
   request,
 }: CreateParams): Promise<PopulatedFlow> {
+  if (request.displayName && request.trigger) {
+    const workflowImport = {
+      displayName: request.displayName,
+      description: request.description,
+      template: {
+        displayName: request.displayName,
+        trigger: request.trigger,
+        valid: true,
+      },
+    };
+    
+    const validationResult = validateWorkflowImport(workflowImport);
+    
+    if (!validationResult.success) {
+      throw new ApplicationError({
+        code: ErrorCode.VALIDATION,
+        params: {
+          message: `Invalid workflow template structure: ${validationResult.errors?.join(', ')}`,
+        },
+      });
+    }
+  }
+
   const folderId =
     isNil(request.folderId) || request.folderId === UNCATEGORIZED_FOLDER_ID
       ? null
@@ -516,7 +540,7 @@ async function create({
     savedFlow.id,
     {
       displayName: request.displayName,
-      description: '',
+      description: request.description || '',
     },
   );
 
@@ -541,6 +565,31 @@ async function update({
     : null;
 
   try {
+    if (operation.type === FlowOperationType.IMPORT_FLOW) {
+      const { displayName, description, trigger } = operation.request;
+      
+      const workflowImport = {
+        displayName,
+        description,
+        template: {
+          displayName,
+          trigger,
+          valid: true,
+        },
+      };
+      
+      const validationResult = validateWorkflowImport(workflowImport);
+      
+      if (!validationResult.success) {
+        throw new ApplicationError({
+          code: ErrorCode.VALIDATION,
+          params: {
+            message: `Invalid workflow template structure: ${validationResult.errors?.join(', ')}`,
+          },
+        });
+      }
+    }
+    
     if (operation.type === FlowOperationType.LOCK_AND_PUBLISH) {
       await flowService.updatedPublishedVersionId({
         id,
@@ -649,7 +698,10 @@ const assertFlowIsNotNull: <T extends Flow>(
 type CreateParams = {
   userId: UserId;
   projectId: ProjectId;
-  request: CreateEmptyFlowRequest;
+  request: CreateEmptyFlowRequest & {
+    description?: string;
+    trigger?: Trigger;
+  };
 };
 
 type CreateFromTemplateParams = {
