@@ -1,4 +1,4 @@
-import { validateWorkflowImport } from '../src/lib/flows/workflow-import-schema';
+import { validateTriggerImport } from '../src/lib/flows/workflow-import-schema';
 import { ActionType, BranchOperator } from '../src/lib/flows/actions/action';
 import { TriggerType } from '../src/lib/flows/triggers/trigger';
 
@@ -264,75 +264,69 @@ describe('WorkflowImportSchema', () => {
     }
   };
   
-  test('should validate a valid workflow import with sample file', () => {
-    const result = validateWorkflowImport(sampleWorkflow);
+  test('should validate a trigger from a workflow', () => {
+    const result = validateTriggerImport(sampleWorkflow.template.trigger);
     expect(result.success).toBe(true);
   });
   
-  test('validateWorkflowImport should return success for valid workflow', () => {
-    const result = validateWorkflowImport(sampleWorkflow);
+  test('validateTriggerImport should return success for valid trigger', () => {
+    const result = validateTriggerImport(sampleWorkflow.template.trigger);
     expect(result.success).toBe(true);
     expect(result.errors).toBeUndefined();
   });
   
-  test('validateWorkflowImport should return errors for invalid workflow', () => {
-    const invalidWorkflow = { ...sampleWorkflow, template: {} };
-    const result = validateWorkflowImport(invalidWorkflow);
+  test('validateTriggerImport should return errors for invalid trigger', () => {
+    const invalidTrigger = { name: 'test' };
+    const result = validateTriggerImport(invalidTrigger as any);
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors!.length).toBeGreaterThan(0);
   });
 
-  test('should validate a workflow with all action types', () => {
-    const workflow = {
-      ...sampleWorkflow,
-      template: {
-        ...sampleWorkflow.template,
-        trigger: {
-          name: 'test-trigger',
-          displayName: 'Test Trigger',
+  test('should validate a trigger with all action types', () => {
+    const trigger = {
+      name: 'test-trigger',
+      displayName: 'Test Trigger',
+      valid: true,
+      type: TriggerType.EMPTY,
+      settings: {},
+      nextAction: {
+        name: 'code-action',
+        displayName: 'Code Action',
+        type: ActionType.CODE,
+        valid: true,
+        settings: {
+          sourceCode: {
+            code: 'export const code = async () => { return true; }',
+            packageJson: '{}'
+          },
+          input: {},
+          inputUiInfo: {},
+          errorHandlingOptions: {}
+        },
+        nextAction: {
+          name: 'branch-action',
+          displayName: 'Branch Action',
+          type: ActionType.BRANCH,
           valid: true,
-          type: TriggerType.EMPTY,
-          settings: {},
-          nextAction: {
-            name: 'code-action',
-            displayName: 'Code Action',
-            type: ActionType.CODE,
-            valid: true,
-            settings: {
-              sourceCode: {
-                code: 'export const code = async () => { return true; }',
-                packageJson: '{}'
-              },
-              input: {},
-              inputUiInfo: {},
-              errorHandlingOptions: {}
-            },
-            nextAction: {
-              name: 'branch-action',
-              displayName: 'Branch Action',
-              type: ActionType.BRANCH,
-              valid: true,
-              settings: {
-                conditions: [
-                  [
-                    {
-                      operator: BranchOperator.TEXT_CONTAINS,
-                      firstValue: 'test',
-                      secondValue: 'value',
-                      caseSensitive: false
-                    }
-                  ]
-                ],
-                inputUiInfo: {}
-              }
-            }
+          settings: {
+            conditions: [
+              [
+                {
+                  operator: BranchOperator.TEXT_CONTAINS,
+                  firstValue: 'test',
+                  secondValue: 'value',
+                  caseSensitive: false
+                }
+              ]
+            ],
+            inputUiInfo: {}
           }
         }
       }
     };
 
-    const result = validateWorkflowImport(workflow);
+    const result = validateTriggerImport(trigger);
     expect(result.success).toBe(true);
   });
 });
