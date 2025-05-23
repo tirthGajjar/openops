@@ -1,4 +1,4 @@
-import { workflowImportValidator, validateWorkflowImport } from '../src/lib/flows/workflow-import-schema';
+import { validateWorkflowImport } from '../src/lib/flows/workflow-import-schema';
 import { ActionType, BranchOperator } from '../src/lib/flows/actions/action';
 import { TriggerType } from '../src/lib/flows/triggers/trigger';
 
@@ -265,8 +265,8 @@ describe('WorkflowImportSchema', () => {
   };
   
   test('should validate a valid workflow import with sample file', () => {
-    const isValid = workflowImportValidator.Check(sampleWorkflow);
-    expect(isValid).toBe(true);
+    const result = validateWorkflowImport(sampleWorkflow);
+    expect(result.success).toBe(true);
   });
   
   test('validateWorkflowImport should return success for valid workflow', () => {
