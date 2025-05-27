@@ -1,6 +1,7 @@
 import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { getAiProviderLanguageModel } from '@openops/common';
 import { AppSystemProp, logger, system } from '@openops/server-shared';
+import { encryptUtils, logger } from '@openops/server-shared';
 import {
   AiConfig,
   DeleteChatHistoryRequest,
@@ -23,7 +24,6 @@ import {
 import { StatusCodes } from 'http-status-codes';
 import { ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
-import { encryptUtils } from '../../helper/encryption';
 import {
   sendAiChatFailureEvent,
   sendAiChatMessageSendEvent,
@@ -44,6 +44,7 @@ import {
 import { summarizeMessages } from './ai-message-history-summarizer';
 import { generateMessageId } from './ai-message-id-generator';
 import { getMcpSystemPrompt } from './prompts.service';
+import { selectRelevantTools } from './tools.service';
 
 const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
@@ -116,10 +117,17 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
     await appendMessagesToSummarizedChatHistory(chatId, [newMessage]);
 
     const tools = await getMCPTools();
-    const isAnalyticsLoaded = Object.keys(tools).some((key) =>
+    const filteredTools = await selectRelevantTools({
+      messages,
+      tools,
+      languageModel,
+      aiConfig,
+    });
+
+    const isAnalyticsLoaded = Object.keys(filteredTools ?? {}).some((key) =>
       key.includes('superset'),
     );
-    const isTablesLoaded = Object.keys(tools).some((key) =>
+    const isTablesLoaded = Object.keys(filteredTools ?? {}).some((key) =>
       key.includes('table'),
     );
 
@@ -127,6 +135,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       isAnalyticsLoaded,
       isTablesLoaded,
     });
+
     // logger.debug({ systemPrompt }, 'systemPrompt');
 
     const retries = { currentIteration: 0 };
@@ -172,7 +181,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
           systemPrompt,
           aiConfig,
           chatId,
-          tools,
+          filteredTools,
           retries,
         );
       },
@@ -253,7 +262,7 @@ async function streamMessages(
   systemPrompt: string,
   aiConfig: AiConfig,
   chatId: string,
-  tools: ToolSet,
+  tools?: ToolSet,
   retry: { currentIteration: number },
 ): Promise<void> {
   let stepCount = 0;
