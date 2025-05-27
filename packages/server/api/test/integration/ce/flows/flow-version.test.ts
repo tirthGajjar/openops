@@ -77,7 +77,7 @@ describe('Flow Version API', () => {
         method: 'POST',
         url: `/v1/flow-versions/${mockFlowVersion.id}/trigger`,
         headers: {
-          authorization: `******        },
+          authorization: `******
         body: {
           flowId: mockFlow.id,
           valid: true,
@@ -114,7 +114,7 @@ describe('Flow Version API', () => {
         method: 'POST',
         url: `/v1/flow-versions/${mockFlowVersion.id}/trigger`,
         headers: {
-          authorization: `******        },
+          authorization: `******
         body: {
           flowId: openOpsId(),
           valid: true,
@@ -155,7 +155,7 @@ describe('Flow Version API', () => {
         method: 'POST',
         url: `/v1/flow-versions/${mockFlowVersion.id}/trigger`,
         headers: {
-          authorization: `******        },
+          authorization: `******
         body: {
           flowId: mockFlow.id,
           valid: true,
@@ -200,7 +200,7 @@ describe('Flow Version API', () => {
         method: 'POST',
         url: `/v1/flow-versions/${mockFlowVersion.id}/operations`,
         headers: {
-          authorization: `******        },
+          authorization: `******
         body: {
           type: FlowOperationType.IMPORT_FLOW,
           request: {
@@ -250,7 +250,7 @@ describe('Flow Version API', () => {
         method: 'POST',
         url: `/v1/flow-versions/${mockFlowVersion.id}/operations`,
         headers: {
-          authorization: `******        },
+          authorization: `******
         body: {
           type: FlowOperationType.IMPORT_FLOW,
           request: {
@@ -318,7 +318,7 @@ describe('Flow Version API', () => {
         method: 'GET',
         url: `/v1/flow-versions?connectionName=testConnection`,
         headers: {
-          authorization: `******        },
+          authorization: `******
       });
 
       expect(response?.statusCode).toBe(StatusCodes.OK);
@@ -346,7 +346,7 @@ describe('Flow Version API', () => {
         method: 'GET',
         url: `/v1/flow-versions?connectionName=nonExistentConnection`,
         headers: {
-          authorization: `******        },
+          authorization: `******
       });
 
       expect(response?.statusCode).toBe(StatusCodes.OK);
@@ -403,7 +403,7 @@ describe('Flow Version API', () => {
         method: 'GET',
         url: `/v1/flow-versions?connectionName=testConnection`,
         headers: {
-          authorization: `******        },
+          authorization: `******
       });
 
       expect(response?.statusCode).toBe(StatusCodes.OK);
