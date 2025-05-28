@@ -31,7 +31,7 @@ export const useAiAssistantChat = () => {
     setMessages,
   } = useChat({
     api: '/api/v1/ai/conversation',
-    maxSteps: 5,
+    // maxSteps: 10,
     body: {
       chatId: openChatResponse?.chatId,
     },

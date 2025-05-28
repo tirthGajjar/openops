@@ -135,10 +135,10 @@ export async function appendMessagesToSummarizedChatHistory(
   summarizeMessages?: (
     existingMessages: CoreMessage[],
   ) => Promise<CoreMessage[]>,
-): Promise<void> {
+): Promise<CoreMessage[]> {
   const historyLock = await distributedLock.acquireLock({
     key: `lock:${summarizedChatHistoryKey(chatId)}`,
-    timeout: 10000,
+    timeout: 100000,
   });
 
   try {
@@ -155,6 +155,8 @@ export async function appendMessagesToSummarizedChatHistory(
       existingMessages,
       DEFAULT_EXPIRE_TIME,
     );
+
+    return existingMessages;
   } finally {
     await historyLock.release();
   }

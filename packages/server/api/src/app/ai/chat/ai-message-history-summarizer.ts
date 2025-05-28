@@ -1,6 +1,7 @@
 import { AppSystemProp, logger, system } from '@openops/server-shared';
 import { AiConfig } from '@openops/shared';
-import { CoreMessage, generateText, LanguageModel } from 'ai';
+import { APICallError, CoreMessage, generateText, LanguageModel } from 'ai';
+import { appendMessagesToSummarizedChatHistory } from './ai-chat.service';
 
 function getHistoryMaxTokens(aiConfig: AiConfig): number {
   const modelMax = aiConfig.modelSettings?.maxTokens;
@@ -13,103 +14,121 @@ function getHistoryMaxTokens(aiConfig: AiConfig): number {
   return 2000;
 }
 
-// const historyMaxMessages = getHistoryMaxMessages();
-// function getHistoryMaxMessages(): number {
-//   return system.getNumberOrThrow(AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY);
-// }
+export async function saasdg(
+  languageModel: LanguageModel,
+  aiConfig: AiConfig,
+  chatId: string,
+  retryIndex: number,
+  errorMessage: string,
+): Promise<CoreMessage[] | null> {
+  if (errorMessage.includes('tokens') && retryIndex < 2) {
+    logger.error('Call Summarize');
 
-// async function getSummaryMessage(
-//   languageModel: LanguageModel,
-//   aiConfig: AiConfig,
-//   messages: CoreMessage[],
-//   maxTokens: number,
-// ): Promise<{ text: string }> {
-//   const systemPrompt =
-//     'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
-//
-//   return generateText({
-//     model: languageModel,
-//     system: systemPrompt,
-//     messages,
-//     ...aiConfig.modelSettings,
-//     maxTokens,
-//   });
-// }
-//
-// export async function summarizeMessages(
-//   languageModel: LanguageModel,
-//   aiConfig: AiConfig,
-//   messages: CoreMessage[],
-//   totalTokens: number,
-// ): Promise<CoreMessage[]> {
-//   const maxTokens = getHistoryMaxTokens(aiConfig);
-//   let debugMessage = `Token count ${totalTokens}, which exceeds the configured limit of ${maxTokens}. Summarizing messages.`;
-//
-//   if (isNaN(totalTokens)) {
-//     debugMessage = `Message count is ${messages.length}, which exceeds the configured limit of ${historyMaxMessages}. Summarizing messages.`;
-//     logger.debug(
-//       `The model is not providing token usage. Checking if the number of messages exceeds ${historyMaxMessages}.`,
-//     );
-//
-//     if (messages.length < historyMaxMessages) {
-//       return messages;
-//     }
-//   } else if (totalTokens < maxTokens) {
-//     return messages;
-//   }
-//
-//   logger.info(debugMessage);
-//
-//   const summaryMaxTokens = maxTokens / 2;
-//   // const { text } = await getSummaryMessage(
-//   //   languageModel,
-//   //   aiConfig,
-//   //   messages,
-//   //   summaryMaxTokens,
-//   // );
-//   //
-//   // return [
-//   //   {
-//   //     role: 'system',
-//   //     content: `The following is a summary of the previous conversation: ${text}`,
-//   //   },
-//   // ];
-//
-//   return requestSummaryMessage(
-//     languageModel,
-//     aiConfig,
-//     messages,
-//     summaryMaxTokens,
-//   );
-// }
+    const chatHistory = await sdgsd(languageModel, aiConfig, chatId);
 
-export async function summarizeMessages(
+    logger.error('Summarize result', chatHistory);
+
+    return chatHistory;
+  }
+
+  return null;
+}
+
+export async function sdgsd(
+  languageModel: LanguageModel,
+  aiConfig: AiConfig,
+  chatId: string,
+): Promise<CoreMessage[]> {
+  return appendMessagesToSummarizedChatHistory(
+    chatId,
+    [],
+    async (existingMessages) => {
+      let reAdd = false;
+      let lastMessage = existingMessages.at(-1);
+      if (lastMessage && lastMessage.role === 'user') {
+        if (existingMessages.length === 1) {
+          return existingMessages;
+        }
+        lastMessage = existingMessages.pop();
+        reAdd = true;
+      }
+
+      try {
+        const summary = await summarizeMessages(
+          languageModel,
+          aiConfig,
+          existingMessages,
+        );
+
+        if (lastMessage && reAdd) {
+          summary.push(lastMessage);
+        }
+
+        return summary;
+      } catch (error) {
+        logger.error('error', error);
+        return existingMessages;
+      }
+    },
+  );
+}
+
+async function summarizeMessages(
   languageModel: LanguageModel,
   aiConfig: AiConfig,
   messages: CoreMessage[],
+  retry: { currentIteration: number } = { currentIteration: 0 },
 ): Promise<CoreMessage[]> {
-  // const { text } = await getSummaryMessage(
-  //   languageModel,
-  //   aiConfig,
-  //   messages,
-  //   summaryMaxTokens,
-  // );
+  try {
+    const systemPrompt =
+      'You are an expert at creating extremely concise conversation summaries. ' +
+      'Focus only on the most important information, decisions, and context. ' +
+      'Omit pleasantries, redundant information, and unnecessary details. ' +
+      'Your summary should be as brief as possible while preserving all critical information.';
 
-  const systemPrompt =
-    'You are a helpful assistant tasked with summarizing conversations. Create concise summaries that preserve key context.';
+    const { text } = await generateText({
+      model: languageModel,
+      system: systemPrompt,
+      messages,
+      ...aiConfig.modelSettings,
+      maxTokens: getHistoryMaxTokens(aiConfig),
+    });
 
-  const { text } = await generateText({
-    model: languageModel,
-    system: systemPrompt,
-    messages,
-    ...aiConfig.modelSettings,
-    maxTokens: getHistoryMaxTokens(aiConfig),
-  });
+    return [
+      {
+        role: 'system',
+        content: `The following is a summary of the previous conversation: ${text}`,
+      },
+    ];
+  } catch (error) {
+    if (retry.currentIteration < 1 && APICallError.isInstance(error)) {
+      const truncated = truncateToLastTwoUserInteractions(messages);
+      retry.currentIteration += 1;
+      return summarizeMessages(languageModel, aiConfig, truncated, retry);
+    }
 
-  return [
-    {
-      role: 'system',
-      content: `The following is a summary of the previous conversation: ${text}`,
-    },
-  ];
+    throw error;
+  }
+}
+
+function truncateToLastTwoUserInteractions(
+  messages: CoreMessage[],
+): CoreMessage[] {
+  const result: CoreMessage[] = [];
+  let userCount = 0;
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+
+    result.unshift(msg);
+
+    if (msg.role === 'user') {
+      userCount++;
+      if (userCount === 2) {
+        break;
+      }
+    }
+  }
+
+  return result;
 }
