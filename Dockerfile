@@ -47,6 +47,10 @@ LABEL service=openops
 COPY nginx.standard.conf /etc/nginx/nginx.conf
 COPY dist/packages/react-ui/ /usr/share/nginx/html/
 
+# Redirect Nginx logs to stdout and stderr to prevent filesystem bloating
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+  && ln -sf /dev/stderr /var/log/nginx/error.log
+
 ARG VERSION=unknown
 ENV OPS_VERSION=$VERSION
 
