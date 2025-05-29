@@ -183,12 +183,10 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
           model: aiConfig.model,
         });
 
-        for (const mcpClient of mcpClients) {
-          (mcpClient as any)
-            ?.close()
-            .catch((e) => logger.warn('Failed to close mcp client.', e));
-        }
-
+        closeMCPClients(mcpClients).catch((e) =>
+          logger.warn('Failed to close mcp client.', e),
+        );
+        
         return '';
       },
     });
@@ -327,9 +325,8 @@ async function streamMessages(
         endStreamWithErrorMessage(dataStreamWriter, message);
       }
 
-      for (const mcpClient of mcpClients) {
-        await (mcpClient as any)?.close();
-      }
+
+      await closeMCPClients(mcpClients);
     },
   });
 
@@ -350,4 +347,11 @@ function endStreamWithErrorMessage(
   dataStreamWriter.write(
     `d:{"finishReason":"stop","usage":{"promptTokens":null,"completionTokens":null}}\n`,
   );
+}
+
+async function closeMCPClients(mcpClients: unknown[]): Promise<void> {
+  for (const mcpClient of mcpClients) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (mcpClient as any)?.close();
+  }
 }

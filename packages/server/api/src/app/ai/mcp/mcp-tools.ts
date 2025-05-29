@@ -47,6 +47,7 @@ async function safeGetTools(
 ): Promise<Partial<MCPTool>> {
   try {
     const mcpTool = await loader();
+    
     logger.debug(`Loaded tools for ${name}:`, {
       keys: mcpTool.toolSet.keys,
     });
