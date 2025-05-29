@@ -16,7 +16,7 @@ export function shouldTryToSummarize(
   message: string,
   attemptIndex: number,
 ): boolean {
-  return message.includes('tokens') && attemptIndex >= 2;
+  return message.includes('tokens') && attemptIndex < 2;
 }
 
 export async function summarizeChatHistoryContext(

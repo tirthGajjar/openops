@@ -86,7 +86,7 @@ export async function selectRelevantTools({
       chatId,
     );
 
-    logger.debug('Retry the call to selectRelevantTools', error);
+    logger.debug('Retry the call to selectRelevantTools');
     return selectRelevantTools({
       chatId,
       messages: newHistory,

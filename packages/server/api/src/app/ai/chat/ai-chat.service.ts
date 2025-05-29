@@ -138,7 +138,7 @@ export async function appendMessagesToChatHistoryContext(
 ): Promise<CoreMessage[]> {
   const historyLock = await distributedLock.acquireLock({
     key: `lock:${chatHistoryContextKey(chatId)}`,
-    timeout: 10000,
+    timeout: 30000,
   });
 
   try {
