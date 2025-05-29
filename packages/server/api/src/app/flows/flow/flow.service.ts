@@ -441,6 +441,7 @@ export const flowService = {
       domains: [],
       created: Date.now().toString(),
       updated: Date.now().toString(),
+      categories: [],
     };
   },
 
