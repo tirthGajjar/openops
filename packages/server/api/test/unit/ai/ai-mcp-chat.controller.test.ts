@@ -41,6 +41,7 @@ jest.mock('@openops/server-shared', () => ({
   },
   AppSystemProp: {
     DB_TYPE: 'DB_TYPE',
+    MAX_LLM_CALLS_WITHOUT_INTERACTION: 'MAX_LLM_CALLS_WITHOUT_INTERACTION',
   },
   SharedSystemProp: {
     ENVIRONMENT: 'ENVIRONMENT',
