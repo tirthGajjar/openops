@@ -307,17 +307,17 @@ async function streamMessages(
       await streamMessages(dataStreamWriter, params);
     },
     async onFinish(result): Promise<void> {
-      await appendMessagesToChatHistory(chatId, result.response.messages);
-      await appendMessagesToChatHistoryContext(
-        chatId,
-        result.response.messages,
-      );
-
       if (result.finishReason === 'length') {
         await summarizeChatHistoryContext(languageModel, aiConfig, chatId);
         const message = `\\n\\nThe message was truncated because the maximum tokens for the context window was reached. Please try again.`;
         endStreamWithErrorMessage(dataStreamWriter, message);
       }
+
+      await appendMessagesToChatHistory(chatId, result.response.messages);
+      await appendMessagesToChatHistoryContext(
+        chatId,
+        result.response.messages,
+      );
 
       await closeMCPClients(params.mcpClients);
     },
