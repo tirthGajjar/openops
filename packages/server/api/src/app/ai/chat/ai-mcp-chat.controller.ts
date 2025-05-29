@@ -171,32 +171,30 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
         await streamMessages(dataStreamWriter, streamMessagesParams);
       },
       onError: (error) => {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        if (streamMessagesParams.handledError) {
-          return '';
+        if (!streamMessagesParams.handledError) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          summarizeChatHistoryContext(languageModel, aiConfig, chatId).catch(
+            (e) => logger.warn('Failed to summarize message history.', e),
+          );
+
+          const message = `${errorMessage}. \\nPlease try again.`;
+          endStreamWithErrorMessage(reply.raw, message);
+          logger.warn(message);
+
+          sendAiChatFailureEvent({
+            projectId,
+            userId: request.principal.id,
+            chatId,
+            errorMessage: message,
+            provider: aiConfig.provider,
+            model: aiConfig.model,
+          });
+
+          closeMCPClients(mcpClients).catch((e) =>
+            logger.warn('Failed to close mcp client.', e),
+          );
         }
-
-        summarizeChatHistoryContext(languageModel, aiConfig, chatId).catch(
-          (e) => logger.warn('Failed to summarize message history.', e),
-        );
-
-        const message = `${errorMessage}. \\nPlease try again.`;
-        endStreamWithErrorMessage(reply.raw, message);
-        logger.warn(message);
-
-        sendAiChatFailureEvent({
-          projectId,
-          userId: request.principal.id,
-          chatId,
-          errorMessage: message,
-          provider: aiConfig.provider,
-          model: aiConfig.model,
-        });
-
-        closeMCPClients(mcpClients).catch((e) =>
-          logger.warn('Failed to close mcp client.', e),
-        );
 
         return '';
       },
@@ -283,7 +281,6 @@ async function streamMessages(
         const message = `Maximum recursion depth (${maxRecursionDepth}) reached. Terminating recursion.`;
         endStreamWithErrorMessage(dataStreamWriter, message);
         logger.warn(message);
-        return;
       }
     },
     async onError(error) {
