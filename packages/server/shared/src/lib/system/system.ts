@@ -89,8 +89,8 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
   [AppSystemProp.DOCS_MCP_SERVER_PATH]: '/root/.mcp/docs.openops.com',
   [AppSystemProp.LOAD_EXPERIMENTAL_MCP_TOOLS]: 'false',
   [AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION]: '10',
-  [AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY]: '15000',
-  [AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY]: '15',
+  [AppSystemProp.MAX_TOKENS_FOR_HISTORY_SUMMARY]: '2000',
+  [AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY]: '2',
 };
 
 export const system = {

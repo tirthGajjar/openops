@@ -2,7 +2,10 @@ import { logger } from '@openops/server-shared';
 import { AiConfig } from '@openops/shared';
 import { CoreMessage, generateObject, LanguageModel, ToolSet } from 'ai';
 import { z } from 'zod';
-import { saasdg } from './ai-message-history-summarizer';
+import {
+  shouldTryToSummarize,
+  summarizeChatHistoryContext,
+} from './ai-message-history-summarizer';
 
 const MAX_SELECTED_TOOLS = 128;
 
@@ -16,19 +19,19 @@ const getSystemPrompt = (
 };
 
 export async function selectRelevantTools({
-  messages,
-  tools,
-  languageModel,
-  aiConfig,
-  retryIndex,
   chatId,
+  tools,
+  messages,
+  aiConfig,
+  languageModel,
+  attemptIndex = 0,
 }: {
-  messages: CoreMessage[];
-  tools: ToolSet;
-  languageModel: LanguageModel;
-  aiConfig: AiConfig;
-  retryIndex: number;
   chatId: string;
+  tools: ToolSet;
+  aiConfig: AiConfig;
+  messages: CoreMessage[];
+  languageModel: LanguageModel;
+  attemptIndex?: number;
 }): Promise<ToolSet | undefined> {
   if (!tools || Object.keys(tools).length === 0) {
     return undefined;
@@ -71,18 +74,17 @@ export async function selectRelevantTools({
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    const newHistory = await saasdg(
-      languageModel,
-      aiConfig,
-      chatId,
-      retryIndex + 1,
-      errorMessage,
-    );
-
-    if (newHistory === null) {
+    attemptIndex = attemptIndex + 1;
+    if (!shouldTryToSummarize(errorMessage, attemptIndex)) {
       logger.error('Error selecting tools', error);
       return;
     }
+
+    const newHistory = await summarizeChatHistoryContext(
+      languageModel,
+      aiConfig,
+      chatId,
+    );
 
     logger.debug('Retry the call to selectRelevantTools', error);
     return selectRelevantTools({
@@ -91,7 +93,7 @@ export async function selectRelevantTools({
       languageModel,
       aiConfig,
       tools,
-      retryIndex: retryIndex + 1,
+      attemptIndex,
     });
   }
 }

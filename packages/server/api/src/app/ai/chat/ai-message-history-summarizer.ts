@@ -1,45 +1,30 @@
 import { AppSystemProp, logger, system } from '@openops/server-shared';
 import { AiConfig } from '@openops/shared';
 import { APICallError, CoreMessage, generateText, LanguageModel } from 'ai';
-import { appendMessagesToSummarizedChatHistory } from './ai-chat.service';
+import { appendMessagesToChatHistoryContext } from './ai-chat.service';
 
 function getHistoryMaxTokens(aiConfig: AiConfig): number {
   const modelMax = aiConfig.modelSettings?.maxTokens;
   if (typeof modelMax === 'number') {
     return modelMax;
   }
-  //
-  // return system.getNumberOrThrow(AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY);
 
-  return 2000;
+  return system.getNumberOrThrow(AppSystemProp.MAX_TOKENS_FOR_HISTORY_SUMMARY);
 }
 
-export async function saasdg(
-  languageModel: LanguageModel,
-  aiConfig: AiConfig,
-  chatId: string,
-  retryIndex: number,
-  errorMessage: string,
-): Promise<CoreMessage[] | null> {
-  if (errorMessage.includes('tokens') && retryIndex < 2) {
-    logger.error('Call Summarize');
-
-    const chatHistory = await sdgsd(languageModel, aiConfig, chatId);
-
-    logger.error('Summarize result', chatHistory);
-
-    return chatHistory;
-  }
-
-  return null;
+export function shouldTryToSummarize(
+  message: string,
+  attemptIndex: number,
+): boolean {
+  return message.includes('tokens') && attemptIndex >= 2;
 }
 
-export async function sdgsd(
+export async function summarizeChatHistoryContext(
   languageModel: LanguageModel,
   aiConfig: AiConfig,
   chatId: string,
 ): Promise<CoreMessage[]> {
-  return appendMessagesToSummarizedChatHistory(
+  return appendMessagesToChatHistoryContext(
     chatId,
     [],
     async (existingMessages) => {
@@ -54,30 +39,34 @@ export async function sdgsd(
       }
 
       try {
-        const summary = await summarizeMessages(
+        logger.debug('Request chat history summary.');
+
+        const summary = await requestToGenerateSummary(
           languageModel,
-          aiConfig,
           existingMessages,
+          aiConfig,
         );
 
         if (lastMessage && reAdd) {
           summary.push(lastMessage);
         }
 
+        logger.debug('The chat history summary has been made.');
+
         return summary;
       } catch (error) {
-        logger.error('error', error);
+        logger.error('Failed to obtain the chat history summary.', error);
         return existingMessages;
       }
     },
   );
 }
 
-async function summarizeMessages(
+async function requestToGenerateSummary(
   languageModel: LanguageModel,
-  aiConfig: AiConfig,
   messages: CoreMessage[],
-  retry: { currentIteration: number } = { currentIteration: 0 },
+  aiConfig: AiConfig,
+  attemptIndex = 0,
 ): Promise<CoreMessage[]> {
   try {
     const systemPrompt =
@@ -87,9 +76,9 @@ async function summarizeMessages(
       'Your summary should be as brief as possible while preserving all critical information.';
 
     const { text } = await generateText({
+      messages,
       model: languageModel,
       system: systemPrompt,
-      messages,
       ...aiConfig.modelSettings,
       maxTokens: getHistoryMaxTokens(aiConfig),
     });
@@ -101,21 +90,38 @@ async function summarizeMessages(
       },
     ];
   } catch (error) {
-    if (retry.currentIteration < 1 && APICallError.isInstance(error)) {
-      const truncated = truncateToLastTwoUserInteractions(messages);
-      retry.currentIteration += 1;
-      return summarizeMessages(languageModel, aiConfig, truncated, retry);
+    if (attemptIndex < 1 && APICallError.isInstance(error)) {
+      const maxInteractions = system.getNumberOrThrow(
+        AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY,
+      );
+
+      const truncated = truncateByTheNumberOfUserInteractions(
+        messages,
+        maxInteractions,
+      );
+
+      attemptIndex += 1;
+      return requestToGenerateSummary(
+        languageModel,
+        truncated,
+        aiConfig,
+        attemptIndex,
+      );
     }
 
     throw error;
   }
 }
 
-function truncateToLastTwoUserInteractions(
+function truncateByTheNumberOfUserInteractions(
   messages: CoreMessage[],
+  maxInteractions: number,
 ): CoreMessage[] {
   const result: CoreMessage[] = [];
   let userCount = 0;
+  logger.debug(
+    `Truncating chat history based on user interactions (maximum interactions: ${maxInteractions}).`,
+  );
 
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
@@ -124,7 +130,7 @@ function truncateToLastTwoUserInteractions(
 
     if (msg.role === 'user') {
       userCount++;
-      if (userCount === 2) {
+      if (userCount === maxInteractions) {
         break;
       }
     }

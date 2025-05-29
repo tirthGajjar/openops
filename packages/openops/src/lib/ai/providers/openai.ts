@@ -50,7 +50,6 @@ function createLanguageModel(params: {
 }): LanguageModelV1 {
   return createOpenAI({
     apiKey: params.apiKey,
-    compatibility: 'strict',
     ...params.providerSettings,
   })(params.model);
 }

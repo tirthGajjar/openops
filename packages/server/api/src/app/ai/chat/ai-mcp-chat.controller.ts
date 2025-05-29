@@ -32,15 +32,18 @@ import { aiConfigService } from '../config/ai-config.service';
 import { getMCPTools } from '../mcp/mcp-tools';
 import {
   appendMessagesToChatHistory,
-  appendMessagesToSummarizedChatHistory,
+  appendMessagesToChatHistoryContext,
   createChatContext,
   deleteChatHistory,
-  deleteSummarizedChatHistory,
+  deleteChatHistoryContext,
   generateChatIdForMCP,
   getChatContext,
   getChatHistory,
 } from './ai-chat.service';
-import { saasdg, sdgsd } from './ai-message-history-summarizer';
+import {
+  shouldTryToSummarize,
+  summarizeChatHistoryContext,
+} from './ai-message-history-summarizer';
 import { generateMessageId } from './ai-message-id-generator';
 import { getMcpSystemPrompt } from './prompts.service';
 import { selectRelevantTools } from './tools.service';
@@ -48,6 +51,18 @@ import { selectRelevantTools } from './tools.service';
 const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
 );
+
+type StreamMessagesParams = {
+  chatId: string;
+  tools?: ToolSet;
+  aiConfig: AiConfig;
+  systemPrompt: string;
+  mcpClients: unknown[];
+  handledError: boolean;
+  attemptIndex?: number;
+  messages: CoreMessage[];
+  languageModel: LanguageModel;
+};
 
 export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   app.post(
@@ -113,18 +128,17 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
     };
 
     await appendMessagesToChatHistory(chatId, [newMessage]);
-    const chatHistory = await appendMessagesToSummarizedChatHistory(chatId, [
+    const chatHistory = await appendMessagesToChatHistoryContext(chatId, [
       newMessage,
     ]);
 
     const { mcpClients, tools } = await getMCPTools();
     const filteredTools = await selectRelevantTools({
-      chatId,
       messages: chatHistory,
       languageModel,
       aiConfig,
       tools,
-      retryIndex: 0,
+      chatId,
     });
 
     const isAnalyticsLoaded = Object.keys(filteredTools ?? {}).some((key) =>
@@ -139,35 +153,32 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       isTablesLoaded,
     });
 
-    const retryObj = {
+    const streamMessagesParams: StreamMessagesParams = {
+      chatId,
+      aiConfig,
+      mcpClients,
+      systemPrompt,
+      languageModel,
+      attemptIndex: 0,
       handledError: false,
-      retryIndex: 0,
+      tools: filteredTools,
+      messages: chatHistory,
     };
 
     pipeDataStreamToResponse(reply.raw, {
       execute: async (dataStreamWriter) => {
         logger.debug('Send user message to LLM.');
-        await streamMessages(
-          dataStreamWriter,
-          languageModel,
-          systemPrompt,
-          aiConfig,
-          chatId,
-          chatHistory,
-          retryObj,
-          mcpClients,
-          filteredTools,
-        );
+        await streamMessages(dataStreamWriter, streamMessagesParams);
       },
       onError: (error) => {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        if (retryObj.handledError) {
+        if (streamMessagesParams.handledError) {
           return '';
         }
 
-        sdgsd(languageModel, aiConfig, chatId).catch((e) =>
-          logger.warn('Failed to summarize message history.', e),
+        summarizeChatHistoryContext(languageModel, aiConfig, chatId).catch(
+          (e) => logger.warn('Failed to summarize message history.', e),
         );
 
         const message = `${errorMessage}. \\nPlease try again.`;
@@ -186,7 +197,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
         closeMCPClients(mcpClients).catch((e) =>
           logger.warn('Failed to close mcp client.', e),
         );
-        
+
         return '';
       },
     });
@@ -204,7 +215,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
 
     try {
       await deleteChatHistory(chatId);
-      await deleteSummarizedChatHistory(chatId);
+      await deleteChatHistoryContext(chatId);
       return await reply.code(StatusCodes.OK).send();
     } catch (error) {
       logger.error('Failed to delete chat history with error: ', error);
@@ -251,23 +262,18 @@ const DeleteChatOptions = {
 
 async function streamMessages(
   dataStreamWriter: DataStreamWriter,
-  languageModel: LanguageModel,
-  systemPrompt: string,
-  aiConfig: AiConfig,
-  chatId: string,
-  messages: CoreMessage[],
-  retryObj: { retryIndex: number; handledError: boolean },
-  mcpClients: unknown[],
-  tools?: ToolSet,
+  params: StreamMessagesParams,
 ): Promise<void> {
-  retryObj.handledError = false;
+  const { languageModel, aiConfig, chatId } = params;
+
+  params.handledError = false;
   let stepCount = 0;
   const result = streamText({
-    model: languageModel,
-    system: systemPrompt,
-    messages,
+    model: params.languageModel,
+    system: params.systemPrompt,
+    messages: params.messages,
     ...aiConfig.modelSettings,
-    tools,
+    tools: params.tools,
     toolChoice: 'auto',
     maxRetries: 1,
     maxSteps: maxRecursionDepth,
@@ -281,52 +287,39 @@ async function streamMessages(
       }
     },
     async onError(error) {
-      retryObj.handledError = true;
+      params.handledError = true;
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      retryObj.retryIndex = retryObj.retryIndex + 1;
+      params.attemptIndex = (params.attemptIndex ?? 0) + 1;
+      if (!shouldTryToSummarize(errorMessage, params.attemptIndex)) {
+        endStreamWithErrorMessage(dataStreamWriter, errorMessage);
+        logger.debug(errorMessage, error);
+        return;
+      }
 
-      const newHistory = await saasdg(
+      params.messages = await summarizeChatHistoryContext(
         languageModel,
         aiConfig,
         chatId,
-        retryObj.retryIndex,
-        errorMessage,
       );
 
-      if (newHistory !== null) {
-        await streamMessages(
-          dataStreamWriter,
-          languageModel,
-          systemPrompt,
-          aiConfig,
-          chatId,
-          newHistory,
-          retryObj,
-          mcpClients,
-          tools,
-        );
-      }
-
-      endStreamWithErrorMessage(dataStreamWriter, errorMessage);
-      logger.debug(errorMessage, error);
+      await streamMessages(dataStreamWriter, params);
     },
     async onFinish(result): Promise<void> {
       await appendMessagesToChatHistory(chatId, result.response.messages);
-      await appendMessagesToSummarizedChatHistory(
+      await appendMessagesToChatHistoryContext(
         chatId,
         result.response.messages,
       );
 
       if (result.finishReason === 'length') {
-        await sdgsd(languageModel, aiConfig, chatId);
+        await summarizeChatHistoryContext(languageModel, aiConfig, chatId);
         const message = `\\n\\nThe message was truncated because the maximum tokens for the context window was reached. Please try again.`;
         endStreamWithErrorMessage(dataStreamWriter, message);
       }
 
-
-      await closeMCPClients(mcpClients);
+      await closeMCPClients(params.mcpClients);
     },
   });
 

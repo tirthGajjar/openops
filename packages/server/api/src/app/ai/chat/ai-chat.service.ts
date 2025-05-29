@@ -16,8 +16,8 @@ const chatHistoryKey = (chatId: string): string => {
   return `${chatId}:history`;
 };
 
-export const summarizedChatHistoryKey = (chatId: string): string => {
-  return `${chatId}:llm:history`;
+export const chatHistoryContextKey = (chatId: string): string => {
+  return `${chatId}:context:history`;
 };
 
 export type MCPChatContext = {
@@ -119,17 +119,17 @@ export const deleteChatHistory = async (chatId: string): Promise<void> => {
   await cacheWrapper.deleteKey(chatHistoryKey(chatId));
 };
 
-export const getSummarizedChatHistory = async (
+export const getChatHistoryContext = async (
   chatId: string,
 ): Promise<CoreMessage[]> => {
   const messages = await cacheWrapper.getSerializedObject<CoreMessage[]>(
-    summarizedChatHistoryKey(chatId),
+    chatHistoryContextKey(chatId),
   );
 
   return messages ?? [];
 };
 
-export async function appendMessagesToSummarizedChatHistory(
+export async function appendMessagesToChatHistoryContext(
   chatId: string,
   newMessages: CoreMessage[],
   summarizeMessages?: (
@@ -137,12 +137,12 @@ export async function appendMessagesToSummarizedChatHistory(
   ) => Promise<CoreMessage[]>,
 ): Promise<CoreMessage[]> {
   const historyLock = await distributedLock.acquireLock({
-    key: `lock:${summarizedChatHistoryKey(chatId)}`,
-    timeout: 100000,
+    key: `lock:${chatHistoryContextKey(chatId)}`,
+    timeout: 10000,
   });
 
   try {
-    let existingMessages = await getSummarizedChatHistory(chatId);
+    let existingMessages = await getChatHistoryContext(chatId);
 
     if (summarizeMessages) {
       existingMessages = await summarizeMessages(existingMessages);
@@ -151,7 +151,7 @@ export async function appendMessagesToSummarizedChatHistory(
     existingMessages.push(...newMessages);
 
     await cacheWrapper.setSerializedObject(
-      summarizedChatHistoryKey(chatId),
+      chatHistoryContextKey(chatId),
       existingMessages,
       DEFAULT_EXPIRE_TIME,
     );
@@ -162,8 +162,8 @@ export async function appendMessagesToSummarizedChatHistory(
   }
 }
 
-export const deleteSummarizedChatHistory = async (
+export const deleteChatHistoryContext = async (
   chatId: string,
 ): Promise<void> => {
-  await cacheWrapper.deleteKey(summarizedChatHistoryKey(chatId));
+  await cacheWrapper.deleteKey(chatHistoryContextKey(chatId));
 };

@@ -11,15 +11,15 @@ jest.mock('ai', () => ({
 jest.mock('@openops/server-shared', () => ({
   system: {
     getNumberOrThrow: jest.fn().mockImplementation((prop: AppSystemProp) => {
-      if (prop === AppSystemProp.MAX_TOKENS_IN_LLM_HISTORY) return 800;
-      if (prop === AppSystemProp.MAX_MESSAGES_IN_LLM_HISTORY) return 20;
+      if (prop === AppSystemProp.MAX_TOKENS_FOR_HISTORY_SUMMARY) return 800;
+      if (prop === AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY) return 20;
 
       throw new Error('Invalid prop');
     }),
   },
   AppSystemProp: {
-    MAX_TOKENS_IN_LLM_HISTORY: 'MAX_TOKENS_IN_LLM_HISTORY',
-    MAX_MESSAGES_IN_LLM_HISTORY: 'MAX_MESSAGES_IN_LLM_HISTORY',
+    MAX_TOKENS_FOR_HISTORY_SUMMARY: 'MAX_TOKENS_FOR_HISTORY_SUMMARY',
+    MAX_USER_INTERACTIONS_FOR_SUMMARY: 'MAX_USER_INTERACTIONS_FOR_SUMMARY',
   },
   logger: {
     debug: jest.fn(),
