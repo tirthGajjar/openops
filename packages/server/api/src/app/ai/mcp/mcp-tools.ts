@@ -49,7 +49,7 @@ async function safeGetTools(
     const mcpTool = await loader();
     
     logger.debug(`Loaded tools for ${name}:`, {
-      keys: mcpTool.toolSet.keys,
+      keys: Object.keys(mcpTool.toolSet),
     });
 
     return mcpTool;
