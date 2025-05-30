@@ -7,6 +7,7 @@ import { CoreMessage } from 'ai';
 
 // Chat expiration time is 24 hour
 const DEFAULT_EXPIRE_TIME = 86400;
+const LOCK_EXPIRE_TIME = 30000;
 
 const chatContextKey = (chatId: string): string => {
   return `${chatId}:context`;
@@ -16,7 +17,7 @@ const chatHistoryKey = (chatId: string): string => {
   return `${chatId}:history`;
 };
 
-export const chatHistoryContextKey = (chatId: string): string => {
+const chatHistoryContextKey = (chatId: string): string => {
   return `${chatId}:context:history`;
 };
 
@@ -101,7 +102,7 @@ export const appendMessagesToChatHistory = async (
 ): Promise<void> => {
   const chatLock = await distributedLock.acquireLock({
     key: `lock:${chatHistoryKey(chatId)}`,
-    timeout: 10000,
+    timeout: LOCK_EXPIRE_TIME,
   });
 
   try {
@@ -138,7 +139,7 @@ export async function appendMessagesToChatHistoryContext(
 ): Promise<CoreMessage[]> {
   const historyLock = await distributedLock.acquireLock({
     key: `lock:${chatHistoryContextKey(chatId)}`,
-    timeout: 30000,
+    timeout: LOCK_EXPIRE_TIME,
   });
 
   try {
