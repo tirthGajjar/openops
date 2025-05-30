@@ -1,6 +1,7 @@
 import { QueryKeys } from '@/app/constants/query-keys';
 import { aiAssistantChatApi } from '@/app/features/ai/lib/ai-assistant-chat-api';
 import { authenticationSession } from '@/app/lib/authentication-session';
+import { useAppStore } from '@/app/store/app-store';
 import { Message, useChat } from '@ai-sdk/react';
 import { toast } from '@openops/components/ui';
 import { OpenChatResponse } from '@openops/shared';
@@ -13,6 +14,9 @@ const AI_ASSISTANT_LS_KEY = 'ai_assistant_chat_id';
 export const useAiAssistantChat = () => {
   const chatId = useRef(localStorage.getItem(AI_ASSISTANT_LS_KEY));
 
+  // Read isAiChatOpened from the app store to guard query execution
+  const isAiChatOpened = useAppStore((state) => state.isAiChatOpened);
+
   const { isPending: isOpenAiChatPending, data: openChatResponse } = useQuery({
     queryKey: [QueryKeys.openAiAssistantChat, chatId.current],
     queryFn: async () => {
@@ -20,6 +24,7 @@ export const useAiAssistantChat = () => {
       onConversationRetrieved(conversation);
       return conversation;
     },
+    enabled: isAiChatOpened, // Only run query when AI chat is opened
   });
 
   const {
