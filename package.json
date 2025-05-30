@@ -207,6 +207,7 @@
     "node-cron": "3.0.3",
     "nodemailer": "6.9.9",
     "npm": "10.8.2",
+    "nx": "21.1.2",
     "nx-cloud": "19.1.0",
     "object-sizeof": "2.6.3",
     "pdf-parse": "1.1.1",
