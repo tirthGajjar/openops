@@ -16,14 +16,17 @@ export const useAiAssistantChat = () => {
 
   const isAiChatOpened = useAppStore((state) => state.isAiChatOpened);
 
+  const hasFetchedOnce = useRef(false);
+
   const { isPending: isOpenAiChatPending, data: openChatResponse } = useQuery({
     queryKey: [QueryKeys.openAiAssistantChat, chatId.current],
     queryFn: async () => {
       const conversation = await aiAssistantChatApi.open(chatId.current);
       onConversationRetrieved(conversation);
+      hasFetchedOnce.current = true;
       return conversation;
     },
-    enabled: isAiChatOpened,
+    enabled: isAiChatOpened && !hasFetchedOnce.current,
   });
 
   const {
