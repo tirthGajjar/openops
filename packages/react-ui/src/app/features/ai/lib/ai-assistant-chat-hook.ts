@@ -14,7 +14,6 @@ const AI_ASSISTANT_LS_KEY = 'ai_assistant_chat_id';
 export const useAiAssistantChat = () => {
   const chatId = useRef(localStorage.getItem(AI_ASSISTANT_LS_KEY));
 
-  // Read isAiChatOpened from the app store to guard query execution
   const isAiChatOpened = useAppStore((state) => state.isAiChatOpened);
 
   const { isPending: isOpenAiChatPending, data: openChatResponse } = useQuery({
@@ -24,7 +23,7 @@ export const useAiAssistantChat = () => {
       onConversationRetrieved(conversation);
       return conversation;
     },
-    enabled: isAiChatOpened, // Only run query when AI chat is opened
+    enabled: isAiChatOpened,
   });
 
   const {

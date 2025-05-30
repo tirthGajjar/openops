@@ -1,7 +1,7 @@
+import { useAppStore } from '@/app/store/app-store';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
-import { useAppStore } from '@/app/store/app-store';
 import { aiAssistantChatApi } from './ai-assistant-chat-api';
 import { useAiAssistantChat } from './ai-assistant-chat-hook';
 
@@ -81,7 +81,7 @@ describe('useAiAssistantChat', () => {
 
   it('should not call queryFn when AI chat is closed', async () => {
     const mockOpen = jest.mocked(aiAssistantChatApi.open);
-    
+
     // Ensure AI chat is closed
     useAppStore.setState({ isAiChatOpened: false });
 
@@ -122,7 +122,9 @@ describe('useAiAssistantChat', () => {
     // Start with AI chat closed
     useAppStore.setState({ isAiChatOpened: false });
 
-    const { rerender } = renderHook(() => useAiAssistantChat(), { wrapper: Wrapper });
+    const { rerender } = renderHook(() => useAiAssistantChat(), {
+      wrapper: Wrapper,
+    });
 
     // Verify no calls when closed
     await waitFor(() => {
