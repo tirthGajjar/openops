@@ -2,6 +2,7 @@ import { BlockCategory, FlagId, FlowTemplateMetadata } from '@openops/shared';
 import { useQuery } from '@tanstack/react-query';
 
 import { flagsHooks } from '@/app/common/hooks/flags-hooks';
+import { DEFAULT_LOCALE } from '@/app/constants/locale';
 import { QueryKeys } from '@/app/constants/query-keys';
 import { blocksHooks } from '@/app/features/blocks/lib/blocks-hook';
 import {
@@ -9,7 +10,10 @@ import {
   templatesApi,
 } from '@/app/features/templates/lib/templates-api';
 import { BlockMetadataModelSummary } from '@openops/blocks-framework';
-import { FlowTemplateMetadataWithIntegrations } from '@openops/components/ui';
+import {
+  FlowTemplateMetadataWithIntegrations,
+  TemplateSidebarCategory,
+} from '@openops/components/ui';
 import { AxiosError } from 'axios';
 import { useMemo } from 'react';
 import { cloudTemplatesApi } from './cloud-templates-api';
@@ -36,11 +40,45 @@ type UseTemplatesParams = GetTemplatesParams & TemplateBaseParams;
 
 const TEMPLATES_FAILURE_RETRY_LIMIT = 3;
 
+const sortFunction = (a: string, b: string) => {
+  return a.localeCompare(b, DEFAULT_LOCALE);
+};
+
+// replace services like "AWS EC2" or "GCP .." or "Azure .." with just "EC2"
+export const replaceServicePrefix = (service?: string) => {
+  if (!service) return '';
+  const match = service.match(/^(AWS|GCP|Azure)\s+([^\s].*)$/);
+  return match ? match[2] : service;
+};
+
+export function getUniqueCategoriesFromTemplates(
+  templates?: FlowTemplateMetadata[],
+): TemplateSidebarCategory[] {
+  const categoryMap = new Map<string, Set<string>>();
+  templates?.forEach((item) => {
+    item.categories?.forEach((category) => {
+      if (category && !categoryMap.has(category)) {
+        categoryMap.set(category, new Set());
+      }
+      item.services.forEach((service) => {
+        categoryMap.get(category)?.add(replaceServicePrefix(service));
+      });
+    });
+  });
+  return Array.from(categoryMap.entries())
+    .map(([name, services]) => ({
+      name,
+      services: Array.from(services).sort(sortFunction),
+    }))
+    .sort((a, b) => sortFunction(a.name, b.name));
+}
+
 export const templatesHooks = {
   useTemplates: ({
     useCloudTemplates = false,
     enabled = true,
     search = '',
+    categories = [],
     services = [],
     domains = [],
     blocks = [],
@@ -56,6 +94,7 @@ export const templatesHooks = {
       queryKey: [
         QueryKeys.flowTemplates,
         search,
+        ...categories,
         ...services,
         ...domains,
         ...blocks,
@@ -71,6 +110,7 @@ export const templatesHooks = {
         return (
           await templatesApiToUse.list({
             search,
+            categories,
             services,
             domains,
             blocks,
@@ -93,7 +133,7 @@ export const templatesHooks = {
     gettingStartedTemplateFilter,
   }: TemplateBaseParams): {
     domains: string[];
-    services: string[];
+    categories: TemplateSidebarCategory[];
     isLoading: boolean;
     status: 'error' | 'success' | 'pending';
     isError: boolean;
@@ -108,7 +148,7 @@ export const templatesHooks = {
       useCloudTemplates,
       gettingStartedTemplateFilter,
     });
-    const [uniqueDomains, uniqueServices] = useMemo(() => {
+    const [uniqueDomains, uniqueCategories] = useMemo(() => {
       const uniqueDomainsSet = new Set<string>();
       const uniqueServicesSet = new Set<string>();
 
@@ -117,15 +157,17 @@ export const templatesHooks = {
         item.services.forEach((service) => uniqueServicesSet.add(service));
       });
 
+      const uniqueCategories = getUniqueCategoriesFromTemplates(templates);
+
       return [
-        Array.from(uniqueDomainsSet).sort(),
-        Array.from(uniqueServicesSet).sort(),
+        Array.from(uniqueDomainsSet).sort(sortFunction),
+        uniqueCategories,
       ];
     }, [templates]);
 
     return {
       domains: uniqueDomains,
-      services: uniqueServices,
+      categories: uniqueCategories,
       isLoading,
       status,
       isError,
@@ -157,6 +199,7 @@ export const templatesHooks = {
     enabled = true,
     useCloudTemplates = false,
     search = '',
+    categories = [],
     services = [],
     domains = [],
     blocks = [],
@@ -173,6 +216,7 @@ export const templatesHooks = {
       useCloudTemplates,
       enabled,
       search,
+      categories,
       services,
       domains,
       blocks,
