@@ -7,6 +7,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { t } from 'i18next';
+import { CircleSlash } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
@@ -157,7 +158,11 @@ const TestActionSection = React.memo(
 
     if (!sampleDataExists) {
       return (
-        <div className="flex-grow flex justify-center items-center w-full h-full">
+        <div className="flex-grow flex justify-between items-center w-full h-full">
+          <div className="flex items-center gap-2 text-primary dark:text-white">
+            <CircleSlash size={24} className="text-gray-300" />
+            {t('Not tested')}
+          </div>
           <TestButtonTooltip disabled={!isValid} aria-label="Test Step Button">
             <Button
               variant="outline"

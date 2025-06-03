@@ -166,6 +166,21 @@ export const flowsApi = {
       `/v1/flow-versions/${flowVersionId}/test-output?${params}`,
     );
   },
+  saveStepTestOutput(flowVersionId: string, stepId: string, output: unknown) {
+    return api.post<{
+      success: boolean;
+      message: string;
+      data: {
+        id: string;
+        stepId: string;
+        output: unknown;
+        flowVersionId: string;
+      };
+    }>(`/v1/flow-versions/${flowVersionId}/test-output`, {
+      stepId,
+      output,
+    });
+  },
 };
 
 function getInitialRun(
