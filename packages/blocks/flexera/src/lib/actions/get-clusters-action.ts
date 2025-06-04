@@ -22,10 +22,13 @@ export const getClustersAction = createAction({
           },
         });
 
-        return response.body.items.map((account: any) => ({
-          label: account.name,
-          value: account.accountId,
-        }));
+        return {
+          disabled: false,
+          options: response.body.response.items?.map((account: any) => ({
+            label: account.name,
+            value: account.accountId,
+          })),
+        };
       },
     }),
   },

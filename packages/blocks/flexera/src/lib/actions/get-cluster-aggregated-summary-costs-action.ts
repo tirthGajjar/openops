@@ -24,6 +24,6 @@ export const getClusterAggregatedSummaryCostsAction = createAction({
       },
     });
 
-    return response.body;
+    return response.body.response;
   },
 });
