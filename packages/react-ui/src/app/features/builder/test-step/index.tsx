@@ -6,16 +6,13 @@ import {
   useToast,
 } from '@openops/components/ui';
 import { t } from 'i18next';
-import React, { useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useCallback, useState } from 'react';
 
 import { ActionType, TriggerType } from '@openops/shared';
 
 import { JsonEditor } from '@/app/common/components/json-editor';
-import { JsonViewer } from '../../../common/components/json-viewer';
-import { QueryKeys } from '@/app/constants/query-keys';
-import { flowsApi } from '../../flows/lib/flows-api';
 import { useStepSettingsContext } from '../step-settings/step-settings-context';
+import { stepTestOutputHooks } from './step-test-output-hooks';
 import { TestActionSection } from './test-action-section';
 import { TestTriggerSection } from './test-trigger-section';
 
@@ -33,48 +30,63 @@ enum TabListEnum {
 
 const TestStepContainer = React.memo(
   ({ flowVersionId, isSaving, type, flowId }: TestStepContainerProps) => {
+    const [tabValue, setTabValue] = useState<TabListEnum>(
+      TabListEnum.STEP_OUTPUT,
+    );
     const { toast } = useToast();
     const { selectedStep } = useStepSettingsContext();
-    const queryClient = useQueryClient();
+    const { mutate } = stepTestOutputHooks.useSaveStepTestOutput();
 
     const updateTestData = useCallback(
-      async (json: any) => {
-        try {
-          if (!selectedStep.id) {
-            toast({
-              title: t('Error'),
-              description: t('Step ID is missing'),
-              variant: 'destructive',
-            });
-            return;
-          }
-
-          await flowsApi.saveStepTestOutput(flowVersionId, selectedStep.id, json);
-
-          // Invalidate the previous query to refresh the data
-          queryClient.invalidateQueries({
-            queryKey: [QueryKeys.stepTestOutput, flowVersionId, selectedStep.id],
-          });
-
-          toast({
-            title: t('Success'),
-            description: t('Test output saved successfully'),
-          });
-        } catch (error) {
-          console.error('Error saving test output:', error);
+      (json: any) => {
+        if (!selectedStep.id) {
           toast({
             title: t('Error'),
-            description: t('Failed to save test output'),
+            description: t('Step ID is missing'),
             variant: 'destructive',
           });
+          return;
         }
+
+        let newValue;
+
+        try {
+          newValue = JSON.parse(json);
+        } catch {
+          newValue = json;
+        }
+
+        mutate(
+          {
+            flowVersionId,
+            stepId: selectedStep.id,
+            output: newValue,
+          },
+          {
+            onSuccess: () => {
+              toast({
+                title: t('Success'),
+                description: t('Test output saved successfully'),
+              });
+              setTabValue(TabListEnum.STEP_OUTPUT);
+            },
+            onError: (error) => {
+              console.error('Error saving test output:', error);
+              toast({
+                title: t('Error'),
+                description: t('Failed to save test output'),
+                variant: 'destructive',
+              });
+            },
+          },
+        );
       },
-      [flowVersionId, selectedStep.id, toast, queryClient]
+      [flowVersionId, selectedStep.id, toast, mutate],
     );
 
     return (
       <div className="flex flex-col gap-4 px-4 py-1">
-        <Tabs defaultValue={TabListEnum.STEP_OUTPUT}>
+        <Tabs value={tabValue} onValueChange={(v) => setTabValue(v)}>
           <TabsList className="w-fit flex items-start gap-0 mb-5 bg-transparent border-none rounded-none">
             <TabsTrigger
               value={TabListEnum.STEP_OUTPUT}

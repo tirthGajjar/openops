@@ -1,27 +1,21 @@
 import {
   Button,
-  clipboardUtils,
-  COPY_PASTE_TOAST_DURATION,
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-  toast,
 } from '@openops/components/ui';
 import { t } from 'i18next';
-import { Check, Copy, Download, Pencil, Trash } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import ReactJson from 'react-json-view';
 import TextareaAutosize from 'react-textarea-autosize';
-
-import { useTheme } from '@/app/common/providers/theme-provider';
 
 type JsonEditorProps = {
   json?: any;
   title: string;
-  onChange?: (json: any) => void;
+  onChange: (json: any) => void;
 };
 
 type JsonFormValues = {
@@ -29,9 +23,6 @@ type JsonFormValues = {
 };
 
 const JsonEditor = React.memo(({ json, title, onChange }: JsonEditorProps) => {
-  const { theme } = useTheme();
-  const [editableJson, setEditableJson] = useState(json);
-
   const validateJson = (
     value: string,
   ): { valid: boolean; message?: string } => {
@@ -60,73 +51,10 @@ const JsonEditor = React.memo(({ json, title, onChange }: JsonEditorProps) => {
   });
 
   useEffect(() => {
-    setEditableJson(json);
     form.reset({
       jsonContent: JSON.stringify(json, null, 2),
     });
   }, [json, form]);
-
-  const showCopySuccessToast = () =>
-    toast({
-      title: t('Copied to clipboard'),
-      duration: COPY_PASTE_TOAST_DURATION,
-    });
-
-  const showCopyFailureToast = () =>
-    toast({
-      title: t('Failed to copy to clipboard'),
-      duration: COPY_PASTE_TOAST_DURATION,
-    });
-
-  const handleCopy = () => {
-    const text = JSON.stringify(editableJson, null, 2);
-    if (navigator.clipboard) {
-      navigator.clipboard
-        .writeText(text)
-        .then(showCopySuccessToast)
-        .catch(showCopyFailureToast);
-    } else {
-      clipboardUtils.copyInInsecureContext({
-        text,
-        onSuccess: showCopySuccessToast,
-        onError: showCopyFailureToast,
-      });
-    }
-  };
-
-  const handleDownload = () => {
-    const blob = new Blob([JSON.stringify(editableJson, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    handleDownloadFile(url);
-  };
-
-  const handleDownloadFile = (fileUrl: string, ext = '') => {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.download = `${title}${ext}`;
-    link.click();
-    URL.revokeObjectURL(fileUrl);
-  };
-
-  const handleEdit = () => {
-    form.reset({
-      jsonContent: JSON.stringify(editableJson, null, 2),
-    });
-    // setIsEditMode(true);
-  };
-
-  const handleDelete = () => {
-    const emptyJson = {};
-    setEditableJson(emptyJson);
-    form.reset({
-      jsonContent: JSON.stringify(emptyJson, null, 2),
-    });
-    if (onChange) {
-      onChange(emptyJson);
-    }
-  };
 
   return (
     <div className="rounded-lg border border-solid border-dividers overflow-hidden">
@@ -135,7 +63,13 @@ const JsonEditor = React.memo(({ json, title, onChange }: JsonEditorProps) => {
           <span className="text-sm">{title}</span>
         </div>
         <div className="flex items-center gap-0">
-          <Button variant={'ghost'} size={'sm'} onClick={handleDelete}>
+          <Button
+            variant={'ghost'}
+            size={'sm'}
+            onClick={() => {
+              onChange(form.getValues().jsonContent);
+            }}
+          >
             <Check className="w-4 h-4" />
             {t('Apply')}
           </Button>
@@ -167,7 +101,7 @@ const JsonEditor = React.memo(({ json, title, onChange }: JsonEditorProps) => {
                       if (ev.key === 'Enter' && !ev.shiftKey) {
                         ev.preventDefault();
                         ev.stopPropagation();
-                        onSubmit();
+                        onChange(form.getValues().jsonContent);
                       }
                     }}
                   />

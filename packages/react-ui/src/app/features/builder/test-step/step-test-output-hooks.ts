@@ -1,7 +1,7 @@
 import { flagsHooks } from '@/app/common/hooks/flags-hooks';
 import { QueryKeys } from '@/app/constants/query-keys';
 import { Action, FlagId, Trigger } from '@openops/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UseFormReturn } from 'react-hook-form';
 import { flowsApi } from '../../flows/lib/flows-api';
 import { stepTestOutputCache } from '../data-selector/data-selector-cache';
@@ -72,5 +72,28 @@ export const stepTestOutputHooks = {
       stepId,
       getFallbackData,
     );
+  },
+
+  useSaveStepTestOutput() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+      mutationFn: async ({
+        flowVersionId,
+        stepId,
+        output,
+      }: {
+        flowVersionId: string;
+        stepId: string;
+        output: unknown;
+      }) => {
+        return flowsApi.saveStepTestOutput(flowVersionId, stepId, output);
+      },
+      onSuccess: (_, { flowVersionId, stepId }) => {
+        queryClient.invalidateQueries({
+          queryKey: [QueryKeys.stepTestOutput, flowVersionId, stepId],
+        });
+      },
+    });
   },
 };
