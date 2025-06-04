@@ -157,6 +157,9 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
       type: PrincipalType.USER,
     },
     params: {},
+    headers: {
+      authorization: 'Bearer test-token',
+    },
   };
 
   describe('POST / (new message endpoint)', () => {
