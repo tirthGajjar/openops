@@ -15,6 +15,7 @@ export enum Provider {
   SNOWFLAKE = 'SNOWFLAKE',
   TERNARY = 'TERNARY',
   UMBRELLA = 'UMBRELLA',
+  FLEXERA = 'FLEXERA',
 }
 
 export const ConnectionProviderSchema = Type.Object({

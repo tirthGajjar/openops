@@ -73,6 +73,11 @@ export const providerMap: Record<Provider, ConnectionProvider> = {
     displayName: 'Umbrella',
     logoUrl: `${baseUrl}/blocks/umbrella.png`,
   },
+  [Provider.FLEXERA]: {
+    id: Provider.FLEXERA,
+    displayName: 'Flexera',
+    logoUrl: `${baseUrl}/blocks/flexera.png`,
+  },
 };
 
 export function getAllConnectionProviders(): ConnectionProvider[] {
