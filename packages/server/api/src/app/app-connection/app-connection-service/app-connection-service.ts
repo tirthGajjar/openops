@@ -72,6 +72,7 @@ export const appConnectionService = {
       value: encryptedConnectionValue,
       id: existingConnection?.id ?? openOpsId(),
       projectId,
+      provider: request.provider,
     };
 
     await repo().upsert(connection, ['name', 'projectId']);
