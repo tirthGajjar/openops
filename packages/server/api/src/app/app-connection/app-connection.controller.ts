@@ -21,7 +21,10 @@ import { devFlagsService } from '../flags/dev-flags.service';
 import { sendConnectionDeletedEvent } from '../telemetry/event-models';
 import { appConnectionService } from './app-connection-service/app-connection-service';
 import { redactSecrets, removeSensitiveData } from './app-connection-utils';
-import { resolveProvidersForBlocks } from './connection-providers-resolver';
+import {
+  getProviderMetadataForAllBlocks,
+  resolveProvidersForBlocks,
+} from './connection-providers-resolver';
 
 export const appConnectionController: FastifyPluginCallbackTypebox = (
   app,
@@ -71,7 +74,7 @@ export const appConnectionController: FastifyPluginCallbackTypebox = (
     ListAppConnectionsRequest,
     async (request): Promise<SeekPage<AppConnectionWithoutSensitiveData>> => {
       const { name, status, cursor, limit } = request.query;
-      let { blockNames, providers } = request.query;
+      let { blockNames, authProviders } = request.query;
 
       const featureFlag = await devFlagsService.getOne(
         FlagId.USE_CONNECTIONS_PROVIDER,
@@ -83,8 +86,8 @@ export const appConnectionController: FastifyPluginCallbackTypebox = (
         );
 
         blockNames = [];
-        providers = providers ?? [];
-        providers.push(...blockProviders);
+        authProviders = authProviders ?? [];
+        authProviders.push(...blockProviders);
       }
 
       const appConnections = await appConnectionService.list({
@@ -95,7 +98,7 @@ export const appConnectionController: FastifyPluginCallbackTypebox = (
         projectId: request.principal.projectId,
         cursorRequest: cursor ?? null,
         limit: limit ?? DEFAULT_PAGE_SIZE,
-        providers,
+        authProviders,
       });
 
       return {
@@ -154,6 +157,14 @@ export const appConnectionController: FastifyPluginCallbackTypebox = (
       );
 
       await reply.status(StatusCodes.NO_CONTENT).send();
+    },
+  );
+
+  app.get(
+    '/metadata',
+    GetConnectionMetadataRequest,
+    async (request): Promise<Record<string, any>> => {
+      return getProviderMetadataForAllBlocks(request.principal.projectId);
     },
   );
 
@@ -254,6 +265,21 @@ const GetAppConnectionRequest = {
           { additionalProperties: true },
         ),
       ]),
+    },
+  },
+};
+
+const GetConnectionMetadataRequest = {
+  config: {
+    allowedPrincipals: [PrincipalType.USER],
+    permission: Permission.READ_APP_CONNECTION,
+  },
+  schema: {
+    tags: ['app-connections'],
+    security: [SERVICE_KEY_SECURITY_OPENAPI],
+    description: 'Get authentication metadata for all available connections',
+    response: {
+      [StatusCodes.OK]: Type.Record(Type.String(), Type.Unknown()),
     },
   },
 };
