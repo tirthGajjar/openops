@@ -289,7 +289,7 @@ async function streamMessages(
         logger.warn(message);
       }
     },
-    async onError(error) {
+    async onError({ error }) {
       params.handledError = true;
       const errorMessage =
         error instanceof Error ? error.message : String(error);
