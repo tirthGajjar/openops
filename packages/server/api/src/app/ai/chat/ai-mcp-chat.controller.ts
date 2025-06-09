@@ -21,6 +21,7 @@ import {
   LanguageModel,
   pipeDataStreamToResponse,
   streamText,
+  ToolChoice,
   ToolSet,
 } from 'ai';
 import { StatusCodes } from 'http-status-codes';
@@ -272,13 +273,22 @@ async function streamMessages(
 
   params.handledError = false;
   let stepCount = 0;
+
+  let systemPrompt = params.systemPrompt;
+  const tools = params.tools;
+  let toolChoice: ToolChoice<Record<string, never>> = 'auto';
+  if (!tools || Object.keys(tools).length === 0) {
+    toolChoice = 'none';
+    systemPrompt += `\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
+  }
+
   const result = streamText({
     model: params.languageModel,
-    system: params.systemPrompt,
+    system: systemPrompt,
     messages: params.messages,
     ...aiConfig.modelSettings,
-    tools: params.tools,
-    toolChoice: 'auto',
+    tools,
+    toolChoice,
     maxRetries: 1,
     maxSteps: maxRecursionDepth,
     async onStepFinish({ finishReason }): Promise<void> {
