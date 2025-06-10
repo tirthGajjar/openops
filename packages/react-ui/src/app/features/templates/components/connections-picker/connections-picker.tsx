@@ -3,7 +3,6 @@ import { Theme, useTheme } from '@/app/common/providers/theme-provider';
 import { DynamicFormValidationProvider } from '@/app/features/builder/dynamic-form-validation/dynamic-form-validation-context';
 import { CreateEditConnectionDialogContent } from '@/app/features/connections/components/create-edit-connection-dialog-content';
 import { appConnectionsHooks } from '@/app/features/connections/lib/app-connections-hooks';
-import { authenticationSession } from '@/app/lib/authentication-session';
 import { BlockMetadataModelSummary } from '@openops/blocks-framework';
 import {
   BlockIcon,
@@ -14,6 +13,7 @@ import {
 } from '@openops/components/ui';
 import {
   AppConnectionWithoutSensitiveData,
+  FlagId,
   flowHelper,
   isNil,
   Trigger,
@@ -44,6 +44,10 @@ const ConnectionsPicker = ({
   close,
   onUseTemplate,
 }: ConnectionsPickerProps) => {
+  const { data: useConnectionsProvider } = flagsHooks.useFlag<boolean>(
+    FlagId.USE_CONNECTIONS_PROVIDER,
+  );
+
   const [selectedBlockMetadata, setSelectedBlockMetadata] =
     useState<BlockMetadataModelSummary | null>(null);
   const [selectedConnections, setSelectedConnections] = useState<{
@@ -69,11 +73,13 @@ const ConnectionsPicker = ({
     data: groupedConnections,
     isLoading,
     refetch,
-  } = appConnectionsHooks.useGroupedConnections({
-    projectId: authenticationSession.getProjectId() ?? '',
-    blockNames: integrations.map((integration) => integration.name),
-    limit: 10000,
-  });
+  } = appConnectionsHooks.useGroupedConnections(
+    {
+      blockNames: integrations.map((integration) => integration.name),
+      limit: 10000,
+    },
+    useConnectionsProvider ?? false,
+  );
 
   useEffect(() => {
     if (

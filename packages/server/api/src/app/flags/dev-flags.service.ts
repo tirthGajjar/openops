@@ -20,7 +20,13 @@ async function getAll(): Promise<Flag[]> {
   flags = [
     {
       id: FlagId.USE_NEW_EXTERNAL_TESTDATA,
-      value: false,
+      value: true,
+      created,
+      updated,
+    },
+    {
+      id: FlagId.USE_CONNECTIONS_PROVIDER,
+      value: true,
       created,
       updated,
     },

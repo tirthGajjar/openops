@@ -150,9 +150,14 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
       type: PrincipalType.USER,
     },
     params: {},
+    headers: {
+      authorization: 'Bearer test-token',
+    },
   };
 
   describe('POST / (new message endpoint)', () => {
+    const systemPrompt = 'system prompt';
+    const emptyToolsSystemPrompt = `${systemPrompt}\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
     const mockChatContext = { chatId: 'test-chat-id' };
     const mockMessages = [{ role: 'user', content: 'previous message' }];
     const mockAiConfig = {
@@ -170,8 +175,11 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
     const mockLanguageModel = {} as LanguageModel;
 
     const mockAllTools = {
-      tool1: { description: 'Tool 1', parameters: {} },
-      tool2: { description: 'Tool 2', parameters: {} },
+      client: [],
+      tools: {
+        tool1: { description: 'Tool 1', parameters: {} },
+        tool2: { description: 'Tool 2', parameters: {} },
+      },
     };
 
     beforeEach(async () => {
@@ -188,7 +196,7 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
       (getAiProviderLanguageModel as jest.Mock).mockResolvedValue(
         mockLanguageModel,
       );
-      (getMcpSystemPrompt as jest.Mock).mockResolvedValue('system prompt');
+      (getMcpSystemPrompt as jest.Mock).mockResolvedValue(systemPrompt);
 
       await aiMCPChatController(mockApp, {} as FastifyPluginOptions);
     });
@@ -206,7 +214,7 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
 
       expect(selectRelevantTools).toHaveBeenCalledWith({
         messages: [...mockMessages, { role: 'user', content: 'test message' }],
-        tools: mockAllTools,
+        tools: mockAllTools.tools,
         languageModel: mockLanguageModel,
         aiConfig: mockAiConfig,
       });
@@ -267,21 +275,37 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
     it.each([
       {
         selectedTools: undefined,
-        expected: { isAnalyticsLoaded: false, isTablesLoaded: false },
+        expected: {
+          isAnalyticsLoaded: false,
+          isTablesLoaded: false,
+          expectedSystemPrompt: emptyToolsSystemPrompt,
+        },
       },
       {
         selectedTools: {},
-        expected: { isAnalyticsLoaded: false, isTablesLoaded: false },
+        expected: {
+          isAnalyticsLoaded: false,
+          isTablesLoaded: false,
+          expectedSystemPrompt: emptyToolsSystemPrompt,
+        },
       },
       {
         selectedTools: null,
-        expected: { isAnalyticsLoaded: false, isTablesLoaded: false },
+        expected: {
+          isAnalyticsLoaded: false,
+          isTablesLoaded: false,
+          expectedSystemPrompt: emptyToolsSystemPrompt,
+        },
       },
       {
         selectedTools: {
           tool1: { description: 'Tool 1', parameters: {} },
         },
-        expected: { isAnalyticsLoaded: false, isTablesLoaded: false },
+        expected: {
+          isAnalyticsLoaded: false,
+          isTablesLoaded: false,
+          expectedSystemPrompt: systemPrompt,
+        },
       },
     ])(
       'should pass filtered tools to streamText via pipeDataStreamToResponse with $selectedTools',
@@ -295,11 +319,15 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
           mockReply as unknown as FastifyReply,
         );
 
-        expect(getMcpSystemPrompt).toHaveBeenCalledWith(expected);
+        expect(getMcpSystemPrompt).toHaveBeenCalledWith({
+          isAnalyticsLoaded: expected.isAnalyticsLoaded,
+          isTablesLoaded: expected.isTablesLoaded,
+        });
         expect(pipeDataStreamToResponse).toHaveBeenCalled();
         expect(streamText).toHaveBeenCalledWith(
           expect.objectContaining({
             tools: selectedTools,
+            system: expected.expectedSystemPrompt,
           }),
         );
       },

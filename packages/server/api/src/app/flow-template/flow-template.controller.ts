@@ -20,13 +20,16 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
       },
       schema: {
         tags: ['flow-templates'],
-        description: 'List flow templates',
+        description:
+          'List available flow templates with filtering options. This endpoint allows searching and filtering templates by tags, services, domains, blocks, and version compatibility. Useful for finding templates that match specific requirements or use cases.',
         querystring: Type.Object({
           search: Type.Optional(Type.String()),
           tags: Type.Optional(Type.Array(Type.String())),
           services: Type.Optional(Type.Array(Type.String())),
           domains: Type.Optional(Type.Array(Type.String())),
           blocks: Type.Optional(Type.Array(Type.String())),
+          version: Type.Optional(Type.String()),
+          categories: Type.Optional(Type.Array(Type.String())),
         }),
       },
     },
@@ -39,6 +42,8 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
         blocks: request.query.blocks,
         projectId: request.principal.projectId,
         organizationId: request.principal.organization.id,
+        version: request.query.version,
+        categories: request.query.categories,
       });
     },
   );
@@ -51,7 +56,8 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
       },
       schema: {
         tags: ['flow-templates'],
-        description: 'Get a flow template by id',
+        description:
+          'Get detailed information about a specific flow template by its ID. This endpoint returns the complete template configuration including its trigger, blocks, and metadata.',
         params: Type.Object({
           id: OpenOpsId,
         }),
@@ -72,6 +78,8 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
         body: {
           type: 'object',
           required: ['flowId'],
+          description:
+            'Create a new flow template from an existing flow. This endpoint allows converting a flow into a reusable template with specified metadata, tags, and version compatibility constraints.',
           properties: {
             flowId: { type: 'string' },
             tags: { type: 'array' },
@@ -81,6 +89,11 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
             isGettingStarted: { type: 'boolean' },
             minVersion: { type: 'string' },
             maxVersion: { type: 'string' },
+            categories: {
+              type: 'array',
+              items: { type: 'string' },
+              nullable: false,
+            },
           },
         },
       },
@@ -96,6 +109,7 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
           isGettingStarted: boolean;
           minVersion: string;
           maxVersion: string;
+          categories: string[];
         };
       }>,
       reply,
@@ -112,6 +126,7 @@ export const flowTemplateController: FastifyPluginAsyncTypebox = async (
           organizationId: request.principal.organization.id,
           minVersion: request.body.minVersion,
           maxVersion: request.body.maxVersion,
+          categories: request.body.categories,
         });
 
         await reply.status(200).send({ result });

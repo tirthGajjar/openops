@@ -1,11 +1,53 @@
 import { ActionType, StepWithIndex, TriggerType } from '@openops/shared';
-import { dataSelectorUtils } from '../data-selector-utils';
+import { BuilderState } from '../../builder-types';
+import { dataSelectorUtils, MentionTreeNode } from '../data-selector-utils';
 
 jest.mock('@/app/lib/utils', () => ({
   formatUtils: {
     formatStepInputOrOutput: (v: unknown) => v,
   },
 }));
+
+const createTestTrigger = (name = 'trigger'): any => ({
+  name,
+  displayName: 'Test Trigger',
+  type: TriggerType.BLOCK,
+  settings: {},
+  valid: true,
+  nextAction: null,
+});
+
+const createTestAction = (
+  name: string,
+  displayName: string,
+  nextAction = null,
+): any => ({
+  id: name,
+  name,
+  displayName,
+  type: ActionType.BLOCK,
+  settings: {},
+  valid: true,
+  nextAction,
+});
+
+const createTestFlow = () => {
+  const step3 = createTestAction('step3', 'Step 3');
+  const step2 = createTestAction('step2', 'Step 2', step3);
+  const step1 = createTestAction('step1', 'Step 1', step2);
+  const trigger = createTestTrigger();
+  trigger.nextAction = step1;
+  return trigger;
+};
+
+const createBuilderState = (overrides = {}): BuilderState => {
+  const defaultState: any = {
+    flow: { id: 'flow1', name: 'Test Flow' },
+    flowVersion: { id: 'version1' },
+  };
+
+  return { ...defaultState, ...overrides };
+};
 
 describe('dataSelectorUtils', () => {
   describe('getAllStepsMentions', () => {
@@ -160,6 +202,772 @@ describe('dataSelectorUtils', () => {
       expect(node.children?.[0].data.displayName).toBe(displayName);
       expect(node.children?.[0].data.propertyPath).toBe('triggerStep');
       expect(node.children?.[0].key).toBe('test_triggerStep');
+    });
+
+    it('uses traverseStepOutputAndReturnMentionTree when step has sample data', () => {
+      const step = {
+        name: 'actionStep',
+        displayName: 'Action Step',
+        settings: {
+          inputUiInfo: {
+            sampleData: { foo: 'bar' },
+          },
+        },
+      };
+      const displayName = '1. Action Step';
+      const node = dataSelectorUtils.createTestNode(step as any, displayName);
+
+      expect(node.children?.[0]?.data.isTestStepNode).toBeUndefined();
+
+      expect(node.key).toBe('actionStep');
+      expect(node.data.displayName).toBe(displayName);
+      expect(node.data.propertyPath).toBe('actionStep');
+      expect(node.children).toHaveLength(1);
+      expect(node.children?.[0].key).toBe("actionStep['foo']");
+      expect(node.children?.[0].data.propertyPath).toBe("actionStep['foo']");
+      expect(node.children?.[0].data.value).toBe('bar');
+    });
+
+    it('creates test node when step has empty sample data object', () => {
+      const step = {
+        name: 'actionStep',
+        displayName: 'Action Step',
+        settings: {
+          inputUiInfo: {
+            sampleData: {},
+          },
+        },
+      };
+      const displayName = '1. Action Step';
+      const node = dataSelectorUtils.createTestNode(step as any, displayName);
+
+      expect(node.key).toBe('actionStep');
+      expect(node.data.displayName).toBe(displayName);
+      expect(node.data.propertyPath).toBe('actionStep');
+      expect(node.children).toHaveLength(1);
+      expect(node.children?.[0].data.isTestStepNode).toBe(true);
+      expect(node.children?.[0].data.displayName).toBe(displayName);
+      expect(node.children?.[0].data.propertyPath).toBe('actionStep');
+      expect(node.children?.[0].key).toBe('test_actionStep');
+    });
+
+    it('creates test node when step has null sample data', () => {
+      const step = {
+        name: 'actionStep',
+        displayName: 'Action Step',
+        settings: {
+          inputUiInfo: {
+            sampleData: null,
+          },
+        },
+      };
+      const displayName = '1. Action Step';
+      const node = dataSelectorUtils.createTestNode(step as any, displayName);
+
+      expect(node.key).toBe('actionStep');
+      expect(node.data.displayName).toBe(displayName);
+      expect(node.data.propertyPath).toBe('actionStep');
+      expect(node.children).toHaveLength(1);
+      expect(node.children?.[0].data.isTestStepNode).toBe(true);
+      expect(node.children?.[0].data.displayName).toBe(displayName);
+      expect(node.children?.[0].data.propertyPath).toBe('actionStep');
+      expect(node.children?.[0].key).toBe('test_actionStep');
+    });
+
+    it('creates test node when step has undefined sample data', () => {
+      const step = {
+        name: 'actionStep',
+        displayName: 'Action Step',
+        settings: {
+          inputUiInfo: {
+            sampleData: undefined,
+          },
+        },
+      };
+      const displayName = '1. Action Step';
+      const node = dataSelectorUtils.createTestNode(step as any, displayName);
+
+      expect(node.key).toBe('actionStep');
+      expect(node.data.displayName).toBe(displayName);
+      expect(node.data.propertyPath).toBe('actionStep');
+      expect(node.children).toHaveLength(1);
+      expect(node.children?.[0].data.isTestStepNode).toBe(true);
+      expect(node.children?.[0].data.displayName).toBe(displayName);
+      expect(node.children?.[0].data.propertyPath).toBe('actionStep');
+      expect(node.children?.[0].key).toBe('test_actionStep');
+    });
+
+    it('creates test node when step has no inputUiInfo', () => {
+      const step = {
+        name: 'actionStep',
+        displayName: 'Action Step',
+        settings: {},
+      };
+      const displayName = '1. Action Step';
+      const node = dataSelectorUtils.createTestNode(step as any, displayName);
+
+      expect(node.key).toBe('actionStep');
+      expect(node.data.displayName).toBe(displayName);
+      expect(node.data.propertyPath).toBe('actionStep');
+      expect(node.children).toHaveLength(1);
+      expect(node.children?.[0].data.isTestStepNode).toBe(true);
+      expect(node.children?.[0].data.displayName).toBe(displayName);
+      expect(node.children?.[0].data.propertyPath).toBe('actionStep');
+      expect(node.children?.[0].key).toBe('test_actionStep');
+    });
+  });
+
+  describe('filterBy', () => {
+    it('returns the original array when query is empty', () => {
+      const nodes: MentionTreeNode[] = [
+        {
+          key: 'node1',
+          data: {
+            propertyPath: 'path1',
+            displayName: 'Node 1',
+            value: 'value1',
+          },
+        },
+        {
+          key: 'node2',
+          data: {
+            propertyPath: 'path2',
+            displayName: 'Node 2',
+            value: 'value2',
+          },
+        },
+      ];
+
+      const result = dataSelectorUtils.filterBy(nodes, '');
+      expect(result).toEqual(nodes);
+    });
+
+    it.each([
+      {
+        desc: 'filters nodes by displayName',
+        nodes: [
+          {
+            key: 'node1',
+            data: {
+              propertyPath: 'path1',
+              displayName: 'Node 1',
+              value: 'value1',
+            },
+          },
+          {
+            key: 'node2',
+            data: {
+              propertyPath: 'path2',
+              displayName: 'Different Name',
+              value: 'value2',
+            },
+          },
+        ],
+        query: 'node',
+        expectedKeys: ['node1'],
+      },
+      {
+        desc: 'filters nodes by value',
+        nodes: [
+          {
+            key: 'node1',
+            data: {
+              propertyPath: 'path1',
+              displayName: 'Node 1',
+              value: 'some value',
+            },
+          },
+          {
+            key: 'node2',
+            data: {
+              propertyPath: 'path2',
+              displayName: 'Node 2',
+              value: 'other content',
+            },
+          },
+        ],
+        query: 'other',
+        expectedKeys: ['node2'],
+      },
+    ])('$desc', ({ nodes, query, expectedKeys }) => {
+      const result = dataSelectorUtils.filterBy(nodes, query);
+      expect(result.map((n: MentionTreeNode) => n.key)).toEqual(expectedKeys);
+    });
+
+    it('recursively filters children', () => {
+      const nodes: MentionTreeNode[] = [
+        {
+          key: 'parent1',
+          data: {
+            propertyPath: 'parent',
+            displayName: 'Parent',
+            value: 'parent value',
+          },
+          children: [
+            {
+              key: 'child1',
+              data: {
+                propertyPath: 'child',
+                displayName: 'Child',
+                value: 'match this',
+              },
+            },
+          ],
+        },
+        {
+          key: 'parent2',
+          data: {
+            propertyPath: 'parent2',
+            displayName: 'Parent 2',
+            value: 'parent value 2',
+          },
+          children: [
+            {
+              key: 'child2',
+              data: {
+                propertyPath: 'child2',
+                displayName: 'Child 2',
+                value: 'different value',
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = dataSelectorUtils.filterBy(nodes, 'match');
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe('parent1');
+      expect(result[0].children).toHaveLength(1);
+      expect(result[0].children?.[0].key).toBe('child1');
+    });
+
+    it('skips test nodes', () => {
+      const nodes: MentionTreeNode[] = [
+        {
+          key: 'node1',
+          data: {
+            propertyPath: 'path1',
+            displayName: 'Node 1',
+            value: 'value1',
+          },
+          children: [
+            {
+              key: 'test_node1',
+              data: {
+                propertyPath: 'path1',
+                displayName: 'Node 1',
+                isTestStepNode: true,
+                value: 'match this',
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = dataSelectorUtils.filterBy(nodes, 'match');
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('getPathToTargetStep', () => {
+    it.each([
+      {
+        desc: 'returns empty array when selectedStep is not provided',
+        state: createBuilderState({
+          selectedStep: '',
+          flowVersion: { trigger: createTestTrigger() },
+        }),
+      },
+      {
+        desc: 'returns empty array when flowVersion.trigger is not provided',
+        state: createBuilderState({
+          selectedStep: 'step1',
+          flowVersion: {},
+        }),
+      },
+    ])('$desc', ({ state }) => {
+      const result = dataSelectorUtils.getPathToTargetStep(state);
+      expect(result).toEqual([]);
+    });
+
+    it('returns path to the target step', () => {
+      const trigger = createTestFlow();
+      const state = createBuilderState({
+        selectedStep: 'step3',
+        flowVersion: { trigger },
+      });
+
+      const result = dataSelectorUtils.getPathToTargetStep(state);
+      expect(result).toHaveLength(3);
+      expect(result[0].name).toBe('trigger');
+      expect(result[1].name).toBe('step1');
+      expect(result[2].name).toBe('step2');
+    });
+
+    it('returns empty array when target step does not exist', () => {
+      const trigger = createTestFlow();
+      const state = createBuilderState({
+        selectedStep: 'nonExistentStep',
+        flowVersion: { trigger },
+      });
+
+      const result = dataSelectorUtils.getPathToTargetStep(state);
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('mergeSampleDataWithTestOutput', () => {
+    it('returns sample data when test output is not an object', () => {
+      const sampleData = { foo: 'bar' };
+      const testOutput = 'not an object';
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when test output is null', () => {
+      const sampleData = { foo: 'bar' };
+      const testOutput = null;
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('prioritizes sample data properties over test output properties', () => {
+      const sampleData = { foo: 'bar', baz: 'qux' };
+      const testOutput = { foo: 'old', extra: 'value' };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        foo: 'bar',
+        baz: 'qux',
+        extra: 'value',
+      });
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns test output when sample data is undefined', () => {
+      const sampleData = undefined;
+      const testOutput = { foo: 'bar' };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(testOutput);
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('returns test output when sample data is null', () => {
+      const sampleData = null;
+      const testOutput = { foo: 'bar' };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(testOutput);
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('preserves sample data in nested object structures', () => {
+      const sampleData = {
+        foo: {
+          bar: 'new value',
+          extra: 'sample',
+        },
+      };
+      const testOutput = {
+        foo: {
+          bar: 'old value',
+          baz: 'test',
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        foo: {
+          bar: 'new value',
+          extra: 'sample',
+          baz: 'test',
+        },
+      });
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when both inputs are primitive values', () => {
+      const sampleData = 'override';
+      const testOutput = 'original';
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is number and test output is string', () => {
+      const sampleData = 42;
+      const testOutput = '100';
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is boolean and test output is number', () => {
+      const sampleData = true;
+      const testOutput = 1;
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is array and test output is primitive', () => {
+      const sampleData = [1, 2, 3];
+      const testOutput = 'not an array';
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is object and test output is array', () => {
+      const sampleData = { foo: 'bar' };
+      const testOutput = [1, 2, 3];
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is Map and test output is array', () => {
+      const sampleData = new Map([['key1', 'value1']]);
+      const testOutput = ['value1', 'value2'];
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is Date and test output is string', () => {
+      const sampleData = new Date('2024-01-01');
+      const testOutput = '2024-01-01';
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is Map and test output is object', () => {
+      const sampleData = new Map([['key1', 'value1']]);
+      const testOutput = { key1: 'value1' };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('returns sample data when sample is Date and test output is object', () => {
+      const sampleData = new Date('2024-01-01');
+      const testOutput = { timestamp: 1704067200000 };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual(sampleData);
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('preserves sample data in nested structures with mixed types', () => {
+      const sampleData = {
+        map: new Map([['key1', 'value1']]),
+        date: new Date('2024-01-01'),
+        nested: {
+          array: [1, 2, 3],
+          primitive: 'value',
+        },
+      };
+      const testOutput = {
+        map: { key1: 'value1' },
+        date: '2024-01-01',
+        nested: {
+          array: 'not an array',
+          primitive: 42,
+          extra: 'value',
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        map: sampleData.map,
+        date: sampleData.date,
+        nested: {
+          array: sampleData.nested.array,
+          primitive: sampleData.nested.primitive,
+          extra: 'value',
+        },
+      });
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('uses test output values when sample data values are undefined', () => {
+      const sampleData = {
+        foo: undefined,
+        nested: {
+          baz: undefined,
+        },
+      };
+      const testOutput = {
+        foo: 'old',
+        nested: {
+          baz: 'old',
+          extra: 'value',
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        foo: 'old',
+        nested: {
+          baz: 'old',
+          extra: 'value',
+        },
+      });
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('merges deeply nested objects (5 levels deep)', () => {
+      const sampleData = {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {
+                  value: 'sample',
+                  extra: 'sample-extra',
+                },
+              },
+            },
+          },
+        },
+      };
+      const testOutput = {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {
+                  value: 'test',
+                  testExtra: 'test-value',
+                },
+              },
+            },
+          },
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {
+                  value: 'sample',
+                  extra: 'sample-extra',
+                  testExtra: 'test-value',
+                },
+              },
+            },
+          },
+        },
+      });
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('preserves test output keys not present in sample data', () => {
+      const sampleData = {
+        foo: {
+          bar: 'sample',
+        },
+      };
+      const testOutput = {
+        foo: {
+          bar: 'test',
+          extra: 'test-value',
+        },
+        rootExtra: 'root-value',
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        foo: {
+          bar: 'sample',
+          extra: 'test-value',
+        },
+        rootExtra: 'root-value',
+      });
+      expect(result.usedSampleData).toBe(true);
+    });
+
+    it('uses test output for empty objects in sample data', () => {
+      const sampleData = {
+        empty: {},
+        nested: {
+          empty: {},
+        },
+      };
+      const testOutput = {
+        empty: { value: 'test' },
+        nested: {
+          empty: { value: 'test' },
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        empty: { value: 'test' },
+        nested: {
+          empty: { value: 'test' },
+        },
+      });
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('uses test output for empty arrays in sample data', () => {
+      const sampleData = {
+        empty: [],
+        nested: {
+          empty: [],
+        },
+      };
+      const testOutput = {
+        empty: [1, 2, 3],
+        nested: {
+          empty: [4, 5, 6],
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        empty: [1, 2, 3],
+        nested: {
+          empty: [4, 5, 6],
+        },
+      });
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('uses test output when sample data has undefined values in nested structure', () => {
+      const sampleData = {
+        level1: {
+          level2: {
+            value: undefined,
+            nested: {
+              value: undefined,
+            },
+          },
+        },
+      };
+      const testOutput = {
+        level1: {
+          level2: {
+            value: 'test-value',
+            nested: {
+              value: 'nested-test-value',
+            },
+          },
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        level1: {
+          level2: {
+            value: 'test-value',
+            nested: {
+              value: 'nested-test-value',
+            },
+          },
+        },
+      });
+      expect(result.usedSampleData).toBe(false);
+    });
+
+    it('handles mixed undefined and defined values in nested structure', () => {
+      const sampleData = {
+        level1: {
+          defined: 'sample-value',
+          undefined: undefined,
+          nested: {
+            defined: 'nested-sample',
+            undefined: undefined,
+          },
+        },
+      };
+      const testOutput = {
+        level1: {
+          defined: 'test-value',
+          undefined: 'test-undefined',
+          nested: {
+            defined: 'nested-test',
+            undefined: 'nested-test-undefined',
+          },
+        },
+      };
+      const result = dataSelectorUtils.mergeSampleDataWithTestOutput(
+        sampleData,
+        testOutput,
+      );
+      expect(result.data).toEqual({
+        level1: {
+          defined: 'sample-value',
+          undefined: 'test-undefined',
+          nested: {
+            defined: 'nested-sample',
+            undefined: 'nested-test-undefined',
+          },
+        },
+      });
+      expect(result.usedSampleData).toBe(true);
     });
   });
 });
