@@ -22,7 +22,7 @@ import {
 } from './ai-message-history-summarizer';
 import { generateMessageId } from './ai-message-id-generator';
 
-type StreamParams = {
+export type StreamParams = {
   userId: string;
   chatId: string;
   projectId: string;
