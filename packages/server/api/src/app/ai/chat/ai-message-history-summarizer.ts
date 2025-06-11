@@ -28,89 +28,106 @@ export async function summarizeChatHistoryContext(
     chatId,
     [],
     async (existingMessages) => {
-      let reAdd = false;
-      let lastMessage = existingMessages.at(-1);
-      if (lastMessage && lastMessage.role === 'user') {
-        if (existingMessages.length === 1) {
-          return existingMessages;
-        }
-        lastMessage = existingMessages.pop();
-        reAdd = true;
-      }
-
-      try {
-        logger.debug('Request chat history summary.');
-
-        const summary = await requestToGenerateSummary(
-          languageModel,
-          existingMessages,
-          aiConfig,
-        );
-
-        if (lastMessage && reAdd) {
-          summary.push(lastMessage);
-        }
-
-        logger.debug('The chat history summary has been made.');
-
-        return summary;
-      } catch (error) {
-        logger.error('Failed to obtain the chat history summary.', error);
-        return existingMessages;
-      }
+      return summarizeChatHistory(existingMessages, languageModel, aiConfig);
     },
   );
+}
+
+async function summarizeChatHistory(
+  existingMessages: CoreMessage[],
+  languageModel: LanguageModel,
+  aiConfig: AiConfig,
+): Promise<CoreMessage[]> {
+  const lastMessage = existingMessages.at(-1);
+
+  const isLastMessageFromUser = lastMessage && lastMessage.role === 'user';
+  const skipSummary = isLastMessageFromUser && existingMessages.length === 1;
+  if (skipSummary) {
+    return existingMessages;
+  }
+
+  const messagesForSummary = isLastMessageFromUser
+    ? existingMessages.slice(0, -1)
+    : existingMessages;
+
+  try {
+    logger.debug('Request chat history summary.');
+
+    const summarizedHistory = await generateSummary(
+      languageModel,
+      messagesForSummary,
+      aiConfig,
+    );
+
+    logger.debug('The chat history summary has been made.');
+
+    return isLastMessageFromUser
+      ? [...summarizedHistory, lastMessage]
+      : summarizedHistory;
+  } catch (error) {
+    logger.error('Failed to obtain the chat history summary.', error);
+    return existingMessages;
+  }
+}
+
+async function generateSummary(
+  languageModel: LanguageModel,
+  messages: CoreMessage[],
+  aiConfig: AiConfig,
+): Promise<CoreMessage[]> {
+  try {
+    return await requestToGenerateSummary(languageModel, messages, aiConfig);
+  } catch (error) {
+    if (APICallError.isInstance(error)) {
+      return retryWithTruncatedInteractions(languageModel, messages, aiConfig);
+    }
+
+    throw error;
+  }
+}
+
+async function retryWithTruncatedInteractions(
+  languageModel: LanguageModel,
+  messages: CoreMessage[],
+  aiConfig: AiConfig,
+): Promise<CoreMessage[]> {
+  const maxInteractions = system.getNumberOrThrow(
+    AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY,
+  );
+
+  const truncated = truncateByTheNumberOfUserInteractions(
+    messages,
+    maxInteractions,
+  );
+
+  return requestToGenerateSummary(languageModel, truncated, aiConfig);
 }
 
 async function requestToGenerateSummary(
   languageModel: LanguageModel,
   messages: CoreMessage[],
   aiConfig: AiConfig,
-  attemptIndex = 0,
 ): Promise<CoreMessage[]> {
-  try {
-    const systemPrompt =
-      'You are an expert at creating extremely concise conversation summaries. ' +
-      'Focus only on the most important information, decisions, and context. ' +
-      'Omit pleasantries, redundant information, and unnecessary details. ' +
-      'Your summary should be as brief as possible while preserving all critical information.';
+  const systemPrompt =
+    'You are an expert at creating extremely concise conversation summaries. ' +
+    'Focus only on the most important information, decisions, and context. ' +
+    'Omit pleasantries, redundant information, and unnecessary details. ' +
+    'Your summary should be as brief as possible while preserving all critical information.';
 
-    const { text } = await generateText({
-      messages,
-      model: languageModel,
-      system: systemPrompt,
-      ...aiConfig.modelSettings,
-      maxTokens: getHistoryMaxTokens(aiConfig),
-    });
+  const { text } = await generateText({
+    messages,
+    model: languageModel,
+    system: systemPrompt,
+    ...aiConfig.modelSettings,
+    maxTokens: getHistoryMaxTokens(aiConfig),
+  });
 
-    return [
-      {
-        role: 'system',
-        content: `The following is a summary of the previous conversation: ${text}`,
-      },
-    ];
-  } catch (error) {
-    if (attemptIndex < 1 && APICallError.isInstance(error)) {
-      const maxInteractions = system.getNumberOrThrow(
-        AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY,
-      );
-
-      const truncated = truncateByTheNumberOfUserInteractions(
-        messages,
-        maxInteractions,
-      );
-
-      attemptIndex += 1;
-      return requestToGenerateSummary(
-        languageModel,
-        truncated,
-        aiConfig,
-        attemptIndex,
-      );
-    }
-
-    throw error;
-  }
+  return [
+    {
+      role: 'system',
+      content: `The following is a summary of the previous conversation: ${text}`,
+    },
+  ];
 }
 
 function truncateByTheNumberOfUserInteractions(
