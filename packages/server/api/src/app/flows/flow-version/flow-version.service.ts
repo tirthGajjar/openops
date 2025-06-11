@@ -10,6 +10,7 @@ import {
   Cursor,
   DEFAULT_SAMPLE_DATA_SETTINGS,
   ErrorCode,
+  FlagId,
   flowHelper,
   FlowId,
   FlowOperationRequest,
@@ -36,6 +37,7 @@ import dayjs from 'dayjs';
 import { EntityManager } from 'typeorm';
 import { blockMetadataService } from '../../blocks/block-metadata-service';
 import { repoFactory } from '../../core/db/repo-factory';
+import { devFlagsService } from '../../flags/dev-flags.service';
 import { buildPaginator } from '../../helper/pagination/build-paginator';
 import { paginationHelper } from '../../helper/pagination/pagination-utils';
 import { FlowVersionEntity } from './flow-version-entity';
@@ -366,12 +368,15 @@ async function removeSecretsFromFlow(
   removeConnectionNames: boolean,
   removeSampleData: boolean,
 ): Promise<FlowVersion> {
+  const featureFlag = await devFlagsService.getOne(
+    FlagId.USE_NEW_EXTERNAL_TESTDATA,
+  );
   const flowVersionWithArtifacts: FlowVersion = JSON.parse(
     JSON.stringify(flowVersion),
   );
   const steps = flowHelper.getAllSteps(flowVersionWithArtifacts.trigger);
   for (const step of steps) {
-    if (removeSampleData) {
+    if (!featureFlag?.value && removeSampleData) {
       step.settings.inputUiInfo = {
         ...DEFAULT_SAMPLE_DATA_SETTINGS,
         // preserve the customizedInputs because it specifies what properties are dynamic values
