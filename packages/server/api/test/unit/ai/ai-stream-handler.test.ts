@@ -240,19 +240,22 @@ describe('ai-stream-handler', () => {
   });
 
   it('should handle errors during streaming', async () => {
+    let onErrorPromise: Promise<void> = Promise.resolve();
     pipeDataStreamToResponseMock.mockImplementation((_, options) => {
       options.execute(mockDataStreamWriter);
     });
 
     const mockError = new Error('Streaming error');
     streamTextMock.mockImplementation(({ onError }) => {
-      onError({ error: mockError });
+      onErrorPromise = onError({ error: mockError });
       return {
         mergeIntoDataStream: jest.fn(),
       };
     });
 
     streamAIResponse(mockStreamParams);
+
+    await onErrorPromise;
 
     expect(mockStreamParams.handledError).toBe(true);
   });
@@ -283,6 +286,9 @@ describe('ai-stream-handler', () => {
   });
 
   it('should try to summarize when error contains "tokens" and attempt index is low', async () => {
+    let onErrorPromise: Promise<void> = Promise.resolve();
+    let secondStreamTextCalled = false;
+
     pipeDataStreamToResponseMock.mockImplementation((_, options) => {
       options.execute(mockDataStreamWriter);
     });
@@ -293,8 +299,15 @@ describe('ai-stream-handler', () => {
       { role: 'system', content: 'Summarized content' },
     ]);
 
-    streamTextMock.mockImplementation(({ onError }) => {
-      onError({ error: mockError });
+    streamTextMock.mockImplementationOnce(({ onError }) => {
+      onErrorPromise = onError({ error: mockError });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamTextMock.mockImplementationOnce(() => {
+      secondStreamTextCalled = true;
       return {
         mergeIntoDataStream: jest.fn(),
       };
@@ -302,15 +315,21 @@ describe('ai-stream-handler', () => {
 
     streamAIResponse(mockStreamParams);
 
+    await onErrorPromise;
+
+    await new Promise(process.nextTick);
+
     expect(shouldTryToSummarizeMock).toHaveBeenCalled();
     expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
       mockLanguageModel,
       mockAiConfig,
       mockStreamParams.chatId,
     );
+    expect(secondStreamTextCalled).toBe(true);
   });
 
   it('should not try to summarize when shouldTryToSummarize returns false', async () => {
+    let onErrorPromise: Promise<void> = Promise.resolve();
     pipeDataStreamToResponseMock.mockImplementation((_, options) => {
       options.execute(mockDataStreamWriter);
     });
@@ -320,13 +339,15 @@ describe('ai-stream-handler', () => {
     generateMessageIdMock.mockReturnValue('message-id-123');
 
     streamTextMock.mockImplementation(({ onError }) => {
-      onError({ error: mockError });
+      onErrorPromise = onError({ error: mockError });
       return {
         mergeIntoDataStream: jest.fn(),
       };
     });
 
     streamAIResponse(mockStreamParams);
+
+    await onErrorPromise;
 
     expect(shouldTryToSummarizeMock).toHaveBeenCalled();
     expect(summarizeChatHistoryContextMock).not.toHaveBeenCalled();
