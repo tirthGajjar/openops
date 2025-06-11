@@ -77,7 +77,7 @@ describe('ai-stream-handler', () => {
     projectId: 'project-id',
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     jest.resetAllMocks();
 
@@ -109,313 +109,301 @@ describe('ai-stream-handler', () => {
     };
   });
 
-  describe('streamAIResponse', () => {
-    it('should call pipeDataStreamToResponse with the correct parameters', () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      streamTextMock.mockReturnValue({
-        mergeIntoDataStream: jest.fn(),
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      expect(pipeDataStreamToResponseMock).toHaveBeenCalledWith(
-        mockServerResponse,
-        expect.objectContaining({
-          execute: expect.any(Function),
-          onError: expect.any(Function),
-        }),
-      );
-      expect(loggerDebugMock).toHaveBeenCalledWith('Send user message to LLM.');
+  it('should call pipeDataStreamToResponse with the correct parameters', () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
     });
 
-    it('should handle errors when streaming fails', () => {
-      const mockError = new Error('Streaming failed');
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.onError(mockError);
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      expect(pipeDataStreamToResponseMock).toHaveBeenCalled();
-      expect(sendAiChatFailureEventMock).toHaveBeenCalled();
+    streamTextMock.mockReturnValue({
+      mergeIntoDataStream: jest.fn(),
     });
+
+    streamAIResponse(mockStreamParams);
+
+    expect(pipeDataStreamToResponseMock).toHaveBeenCalledWith(
+      mockServerResponse,
+      expect.objectContaining({
+        execute: expect.any(Function),
+        onError: expect.any(Function),
+      }),
+    );
+    expect(loggerDebugMock).toHaveBeenCalledWith('Send user message to LLM.');
   });
 
-  describe('streamMessages', () => {
-    it('should call streamText with the correct parameters', () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      const mockStreamTextResult = {
-        mergeIntoDataStream: jest.fn(),
-      };
-      streamTextMock.mockReturnValue(mockStreamTextResult);
-
-      streamAIResponse(mockStreamParams);
-
-      expect(streamTextMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: mockLanguageModel,
-          system: expect.any(String),
-          messages: mockStreamParams.messages,
-          maxRetries: 1,
-          maxSteps: 1,
-          onStepFinish: expect.any(Function),
-          onError: expect.any(Function),
-          onFinish: expect.any(Function),
-        }),
-      );
-      expect(mockStreamTextResult.mergeIntoDataStream).toHaveBeenCalledWith(
-        mockDataStreamWriter,
-      );
+  it('should handle errors when streaming fails', () => {
+    const mockError = new Error('Streaming failed');
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.onError(mockError);
     });
 
-    it('should handle onFinish callback correctly', async () => {
-      let onFinishPromise: Promise<void> = Promise.resolve();
-      appendMessagesToChatHistoryMock.mockResolvedValue(undefined);
-      appendMessagesToChatHistoryContextMock.mockResolvedValue([]);
+    streamAIResponse(mockStreamParams);
 
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      streamTextMock.mockImplementation(({ onFinish }) => {
-        onFinishPromise = onFinish({
-          finishReason: 'stop',
-          response: {
-            messages: [{ role: 'assistant', content: 'Hello there!' }],
-          },
-        });
-
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      await onFinishPromise;
-
-      expect(appendMessagesToChatHistoryMock).toHaveBeenCalledWith(
-        mockStreamParams.chatId,
-        [{ role: 'assistant', content: 'Hello there!' }],
-      );
-      expect(appendMessagesToChatHistoryContextMock).toHaveBeenCalledWith(
-        mockStreamParams.chatId,
-        [{ role: 'assistant', content: 'Hello there!' }],
-      );
-    });
-
-    it('should handle message truncation', async () => {
-      let onFinishPromise: Promise<void> = Promise.resolve();
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      generateMessageIdMock.mockReturnValue('message-id-123');
-
-      streamTextMock.mockImplementation(({ onFinish }) => {
-        onFinishPromise = onFinish({
-          finishReason: 'length',
-          response: {
-            messages: [{ role: 'assistant', content: 'Truncated message' }],
-          },
-        });
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      await onFinishPromise;
-
-      expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
-        mockLanguageModel,
-        mockAiConfig,
-        mockStreamParams.chatId,
-      );
-      expect(mockDataStreamWriter.write).toHaveBeenCalled();
-    });
-
-    it('should handle errors during streaming', async () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      const mockError = new Error('Streaming error');
-      streamTextMock.mockImplementation(({ onError }) => {
-        onError({ error: mockError });
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      expect(mockStreamParams.handledError).toBe(true);
-    });
-
-    it('should handle maximum recursion depth', async () => {
-      let onStepFinishPromise: Promise<void> = Promise.resolve();
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      generateMessageIdMock.mockReturnValue('message-id-123');
-
-      streamTextMock.mockImplementation(({ onStepFinish }) => {
-        onStepFinishPromise = onStepFinish({ finishReason: 'tool_calls' });
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      await onStepFinishPromise;
-
-      expect(mockDataStreamWriter.write).toHaveBeenCalled();
-      expect(loggerWarnMock).toHaveBeenCalledWith(
-        expect.stringContaining('Maximum recursion depth'),
-      );
-    });
-
-    it('should try to summarize when error contains "tokens" and attempt index is low', async () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      const mockError = new Error('Too many tokens');
-      shouldTryToSummarizeMock.mockReturnValue(true);
-      summarizeChatHistoryContextMock.mockResolvedValue([
-        { role: 'system', content: 'Summarized content' },
-      ]);
-
-      streamTextMock.mockImplementation(({ onError }) => {
-        onError({ error: mockError });
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      expect(shouldTryToSummarizeMock).toHaveBeenCalled();
-      expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
-        mockLanguageModel,
-        mockAiConfig,
-        mockStreamParams.chatId,
-      );
-    });
-
-    it('should not try to summarize when shouldTryToSummarize returns false', async () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
-
-      const mockError = new Error('Different error');
-      shouldTryToSummarizeMock.mockReturnValue(false);
-      generateMessageIdMock.mockReturnValue('message-id-123');
-
-      streamTextMock.mockImplementation(({ onError }) => {
-        onError({ error: mockError });
-        return {
-          mergeIntoDataStream: jest.fn(),
-        };
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      expect(shouldTryToSummarizeMock).toHaveBeenCalled();
-      expect(summarizeChatHistoryContextMock).not.toHaveBeenCalled();
-      expect(sendAiChatFailureEventMock).toHaveBeenCalled();
-    });
+    expect(pipeDataStreamToResponseMock).toHaveBeenCalled();
+    expect(sendAiChatFailureEventMock).toHaveBeenCalled();
   });
 
-  describe('askToTryAgain', () => {
-    it('should handle errors when summarizing chat history context', async () => {
-      // Setup
-      const mockError = new Error('Test error');
-      const summarizationError = new Error('Summarization failed');
-      summarizeChatHistoryContextMock.mockRejectedValueOnce(summarizationError);
-      generateMessageIdMock.mockReturnValue('message-id-123');
-
-      // Execute - we need to access the onError handler from pipeDataStreamToResponse
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.onError(mockError);
-      });
-
-      streamAIResponse(mockStreamParams);
-
-      // Wait for promises to resolve
-      await new Promise(process.nextTick);
-
-      // Verify
-      expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
-        mockLanguageModel,
-        mockAiConfig,
-        mockStreamParams.chatId,
-      );
-      expect(loggerWarnMock).toHaveBeenCalledWith(
-        'Failed to summarize message history.',
-        summarizationError,
-      );
-      expect(sendAiChatFailureEventMock).toHaveBeenCalled();
+  it('should call streamText with the correct parameters', () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
     });
+
+    const mockStreamTextResult = {
+      mergeIntoDataStream: jest.fn(),
+    };
+    streamTextMock.mockReturnValue(mockStreamTextResult);
+
+    streamAIResponse(mockStreamParams);
+
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: mockLanguageModel,
+        system: expect.any(String),
+        messages: mockStreamParams.messages,
+        maxRetries: 1,
+        maxSteps: 1,
+        onStepFinish: expect.any(Function),
+        onError: expect.any(Function),
+        onFinish: expect.any(Function),
+      }),
+    );
+    expect(mockStreamTextResult.mergeIntoDataStream).toHaveBeenCalledWith(
+      mockDataStreamWriter,
+    );
   });
 
-  describe('updateSystemPromptIfThereAreNoTools', () => {
-    it('should set toolChoice to none and update system prompt when no tools are provided', () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
-      });
+  it('should handle onFinish callback correctly', async () => {
+    let onFinishPromise: Promise<void> = Promise.resolve();
+    appendMessagesToChatHistoryMock.mockResolvedValue(undefined);
+    appendMessagesToChatHistoryContextMock.mockResolvedValue([]);
 
-      const paramsWithoutTools = {
-        ...mockStreamParams,
-        tools: undefined,
-      };
-
-      streamTextMock.mockReturnValue({
-        mergeIntoDataStream: jest.fn(),
-      });
-
-      streamAIResponse(paramsWithoutTools);
-
-      expect(streamTextMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolChoice: 'none',
-          system: expect.stringContaining('MCP tools are not available'),
-        }),
-      );
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
     });
 
-    it('should set toolChoice to auto when tools are provided', () => {
-      pipeDataStreamToResponseMock.mockImplementation((_, options) => {
-        options.execute(mockDataStreamWriter);
+    streamTextMock.mockImplementation(({ onFinish }) => {
+      onFinishPromise = onFinish({
+        finishReason: 'stop',
+        response: {
+          messages: [{ role: 'assistant', content: 'Hello there!' }],
+        },
       });
 
-      const paramsWithTools = {
-        ...mockStreamParams,
-        tools: { someFunction: { description: 'test' } } as unknown as ToolSet,
-      };
-
-      streamTextMock.mockReturnValue({
+      return {
         mergeIntoDataStream: jest.fn(),
-      });
-
-      streamAIResponse(paramsWithTools);
-
-      expect(streamTextMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          toolChoice: 'auto',
-          tools: paramsWithTools.tools,
-        }),
-      );
+      };
     });
+
+    streamAIResponse(mockStreamParams);
+
+    await onFinishPromise;
+
+    expect(appendMessagesToChatHistoryMock).toHaveBeenCalledWith(
+      mockStreamParams.chatId,
+      [{ role: 'assistant', content: 'Hello there!' }],
+    );
+    expect(appendMessagesToChatHistoryContextMock).toHaveBeenCalledWith(
+      mockStreamParams.chatId,
+      [{ role: 'assistant', content: 'Hello there!' }],
+    );
+  });
+
+  it('should handle message truncation', async () => {
+    let onFinishPromise: Promise<void> = Promise.resolve();
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    generateMessageIdMock.mockReturnValue('message-id-123');
+
+    streamTextMock.mockImplementation(({ onFinish }) => {
+      onFinishPromise = onFinish({
+        finishReason: 'length',
+        response: {
+          messages: [{ role: 'assistant', content: 'Truncated message' }],
+        },
+      });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    await onFinishPromise;
+
+    expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
+      mockLanguageModel,
+      mockAiConfig,
+      mockStreamParams.chatId,
+    );
+    expect(mockDataStreamWriter.write).toHaveBeenCalled();
+  });
+
+  it('should handle errors during streaming', async () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    const mockError = new Error('Streaming error');
+    streamTextMock.mockImplementation(({ onError }) => {
+      onError({ error: mockError });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    expect(mockStreamParams.handledError).toBe(true);
+  });
+
+  it('should handle maximum recursion depth', async () => {
+    let onStepFinishPromise: Promise<void> = Promise.resolve();
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    generateMessageIdMock.mockReturnValue('message-id-123');
+
+    streamTextMock.mockImplementation(({ onStepFinish }) => {
+      onStepFinishPromise = onStepFinish({ finishReason: 'tool_calls' });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    await onStepFinishPromise;
+
+    expect(mockDataStreamWriter.write).toHaveBeenCalled();
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      expect.stringContaining('Maximum recursion depth'),
+    );
+  });
+
+  it('should try to summarize when error contains "tokens" and attempt index is low', async () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    const mockError = new Error('Too many tokens');
+    shouldTryToSummarizeMock.mockReturnValue(true);
+    summarizeChatHistoryContextMock.mockResolvedValue([
+      { role: 'system', content: 'Summarized content' },
+    ]);
+
+    streamTextMock.mockImplementation(({ onError }) => {
+      onError({ error: mockError });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    expect(shouldTryToSummarizeMock).toHaveBeenCalled();
+    expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
+      mockLanguageModel,
+      mockAiConfig,
+      mockStreamParams.chatId,
+    );
+  });
+
+  it('should not try to summarize when shouldTryToSummarize returns false', async () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    const mockError = new Error('Different error');
+    shouldTryToSummarizeMock.mockReturnValue(false);
+    generateMessageIdMock.mockReturnValue('message-id-123');
+
+    streamTextMock.mockImplementation(({ onError }) => {
+      onError({ error: mockError });
+      return {
+        mergeIntoDataStream: jest.fn(),
+      };
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    expect(shouldTryToSummarizeMock).toHaveBeenCalled();
+    expect(summarizeChatHistoryContextMock).not.toHaveBeenCalled();
+    expect(sendAiChatFailureEventMock).toHaveBeenCalled();
+  });
+
+  it('should handle errors when summarizing chat history context', async () => {
+    const mockError = new Error('Test error');
+    const summarizationError = new Error('Summarization failed');
+    summarizeChatHistoryContextMock.mockRejectedValueOnce(summarizationError);
+    generateMessageIdMock.mockReturnValue('message-id-123');
+
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.onError(mockError);
+    });
+
+    streamAIResponse(mockStreamParams);
+
+    await new Promise(process.nextTick);
+
+    expect(summarizeChatHistoryContextMock).toHaveBeenCalledWith(
+      mockLanguageModel,
+      mockAiConfig,
+      mockStreamParams.chatId,
+    );
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      'Failed to summarize message history.',
+      summarizationError,
+    );
+    expect(sendAiChatFailureEventMock).toHaveBeenCalled();
+  });
+
+  it('should set toolChoice to none and update system prompt when no tools are provided', () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    const paramsWithoutTools = {
+      ...mockStreamParams,
+      tools: undefined,
+    };
+
+    streamTextMock.mockReturnValue({
+      mergeIntoDataStream: jest.fn(),
+    });
+
+    streamAIResponse(paramsWithoutTools);
+
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolChoice: 'none',
+        system: expect.stringContaining('MCP tools are not available'),
+      }),
+    );
+  });
+
+  it('should set toolChoice to auto when tools are provided', () => {
+    pipeDataStreamToResponseMock.mockImplementation((_, options) => {
+      options.execute(mockDataStreamWriter);
+    });
+
+    const paramsWithTools = {
+      ...mockStreamParams,
+      tools: { someFunction: { description: 'test' } } as unknown as ToolSet,
+    };
+
+    streamTextMock.mockReturnValue({
+      mergeIntoDataStream: jest.fn(),
+    });
+
+    streamAIResponse(paramsWithTools);
+
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolChoice: 'auto',
+        tools: paramsWithTools.tools,
+      }),
+    );
   });
 });
