@@ -1,16 +1,16 @@
-import { Alert, AlertDescription } from '../../ui/alert';
-
-import { Button } from '../../ui/button';
-import { useToast } from '../../ui/use-toast';
-
 import { t } from 'i18next';
-import { Copy, Plus } from 'lucide-react';
+import { Copy, Plus, SquareArrowOutUpRight } from 'lucide-react';
 import React, { useCallback, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
 import validator from 'validator';
 import { clipboardUtils } from '../../lib/clipboard-utils';
 import { cn } from '../../lib/cn';
 import { COPY_PASTE_TOAST_DURATION } from '../../lib/constants';
+import { Alert, AlertDescription } from '../../ui/alert';
+import { Button } from '../../ui/button';
+import { Card, CardContent } from '../../ui/card';
+import { useToast } from '../../ui/use-toast';
 import { CodeVariations, MarkdownCodeVariations } from './types';
 
 function applyVariables(markdown: string, variables: Record<string, string>) {
@@ -124,6 +124,42 @@ const LanguageUrl = ({ content }: { content: string }) => {
   }
 
   return <LanguageText content={content} />;
+};
+
+const TableLinkCard = ({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) => {
+  const navigate = useNavigate();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const url = new URL(href, window.location.origin);
+    navigate({
+      pathname: url.pathname,
+      search: url.search,
+    });
+  };
+
+  return (
+    <Card
+      className="my-4 hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={handleClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h4 className="font-medium text-sm">{children}</h4>
+            <p className="text-xs text-muted-foreground mt-1">{href}</p>
+          </div>
+          <SquareArrowOutUpRight className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 /*
@@ -286,17 +322,28 @@ const Markdown = React.memo(
             li: ({ node, ...props }) => (
               <li className={cn(textClassName)} {...props} />
             ),
-            a: ({ node, ...props }) => (
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  'font-medium text-primary underline underline-offset-4',
-                  linkClassName,
-                )}
-                {...props}
-              />
-            ),
+
+            a: ({ node, ...props }) => {
+              const isTablesLink = props.href?.includes('tables');
+              if (isTablesLink) {
+                return (
+                  <TableLinkCard href={props.href || ''}>
+                    {props.children}
+                  </TableLinkCard>
+                );
+              }
+              return (
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    'font-medium text-primary underline underline-offset-4',
+                    linkClassName,
+                  )}
+                  {...props}
+                />
+              );
+            },
             blockquote: ({ node, ...props }) => (
               <blockquote className="mt-6 border-l-2 pl-6 italic" {...props} />
             ),

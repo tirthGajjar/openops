@@ -16,3 +16,4 @@ When invoking the OpenOps Tables (Baserow) MCP, you must fully understand the Ba
   - Token-based authentication is used for all API interactions.
   - If the user wants to know something related to a table or records in a table, you should always call the appropriate tool to query it, never make assumptions
   - When calling list_rows_table tools, provide the tools with the appropriate search filter according to the user input. If you're not sure what the filter is, ask the user for clarification.
+  - If the user asks for data from a specific table or if data from a table is referenced, always add a relative link, example: /tables?path=/database/1/table/7 (where database id is always 1, and 7 is the id of the table)
