@@ -1,4 +1,4 @@
-import { BlockMetadataModel } from '@openops/blocks-framework';
+import { BlockAuthProperty } from '@openops/blocks-framework';
 import {
   distributedLock,
   encryptUtils,
@@ -121,7 +121,7 @@ export const appConnectionService = {
     const restoredConnectionValue = restoreRedactedSecrets(
       request.value,
       decryptedExisting.value,
-      params.block.auth,
+      params.authProperty,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ) as any;
 
@@ -506,7 +506,7 @@ type PatchParams = {
   userId: UserId;
   projectId: ProjectId;
   request: PatchAppConnectionRequestBody;
-  block: BlockMetadataModel;
+  authProperty: BlockAuthProperty | undefined;
 };
 
 type GetOneByName = {
