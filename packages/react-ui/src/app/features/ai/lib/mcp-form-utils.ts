@@ -21,22 +21,11 @@ export const mcpFormSchemaResolver: Resolver<McpSettingsFormSchema> = async (
   context,
   options,
 ) => {
-  const errors: Record<string, any> = {};
-
-  if (data?.awsCost?.enabled && !data.awsCost.connectionName) {
-    errors['awsCost.connectionName'] = {
-      message: 'Connection name is required when AWS Cost is enabled',
-    };
-  }
-
   const typeboxValidation = await typeboxResolver(MCP_SETTINGS_FORM_SCHEMA)(
     data,
     context,
     options,
   );
 
-  return {
-    ...typeboxValidation,
-    errors: { ...typeboxValidation.errors, ...errors },
-  };
+  return typeboxValidation;
 };
