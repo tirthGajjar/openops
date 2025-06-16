@@ -7,6 +7,10 @@ import {
 } from '@/app/features/ai/lib/ai-form-utils';
 import { aiSettingsApi } from '@/app/features/ai/lib/ai-settings-api';
 import { aiSettingsHooks } from '@/app/features/ai/lib/ai-settings-hooks';
+import { McpSettingsFormSchema } from '@/app/features/ai/lib/mcp-form-utils';
+import { mcpSettingsApi } from '@/app/features/ai/lib/mcp-settings-api';
+import { mcpSettingsHooks } from '@/app/features/ai/lib/mcp-settings-hooks';
+import { McpSettingsForm } from '@/app/features/ai/mcp-settings-form';
 import {
   INTERNAL_ERROR_TOAST,
   toast,
@@ -25,9 +29,12 @@ const AiSettingsPage = () => {
   const { data: aiSettings, refetch: refetchAiSettings } =
     aiSettingsHooks.useAiSettings();
 
+  const { data: mcpSettings, refetch: refetchMcpSettings } =
+    mcpSettingsHooks.useMcpSettings();
+
   const queryClient = useQueryClient();
 
-  const { mutate: onSave, isPending: isSaving } = useMutation({
+  const { mutate: onSaveAiSettings, isPending: isSaving } = useMutation({
     mutationFn: async (aiSettings: AiSettingsFormSchema) => {
       return aiSettingsApi.saveAiSettings(aiSettings);
     },
@@ -60,6 +67,32 @@ const AiSettingsPage = () => {
     },
   });
 
+  const { mutate: onSaveMcpSettings, isPending: isSavingMcpSettings } =
+    useMutation({
+      mutationFn: async (mcpSettings: McpSettingsFormSchema) => {
+        return mcpSettingsApi.saveMcpSettings(mcpSettings);
+      },
+      onSuccess: () => {
+        refetchMcpSettings();
+        toast(AI_SETTINGS_SAVED_SUCCESSFULLY_TOAST);
+      },
+      onError: () => {
+        toast(INTERNAL_ERROR_TOAST);
+      },
+    });
+
+  const { mutate: onDeleteMcpSettings } = mcpSettingsHooks.useDeleteMcpSettings(
+    {
+      onSuccess: () => {
+        refetchMcpSettings();
+        toast(AI_SETTINGS_DELETED_SUCCESSFULLY_TOAST);
+      },
+      onError: () => {
+        toast(INTERNAL_ERROR_TOAST);
+      },
+    },
+  );
+
   const { mutate: onDelete } = useMutation({
     mutationFn: async (id: string) => {
       return aiSettingsApi.deleteAiSettings(id);
@@ -76,13 +109,13 @@ const AiSettingsPage = () => {
   return (
     <div className="flex w-full flex-col items-center justify-center gap-4">
       <div className="mx-auto w-full flex-col">
-        <h1 className="text-2xl font-bold mb-[35px]">{t('AI providers')}</h1>
-        <div className="flex justify-between p-6 border rounded-[11px]">
+        <h1 className="text-2xl font-bold">{t('AI providers')}</h1>
+        <div className="flex justify-between mt-[35px] p-6 border rounded-[11px]">
           <AiSettingsForm
             aiProviders={aiProviders}
             isAiProvidersLoading={isAiProvidersLoading}
             savedSettings={aiSettings?.[0]}
-            onSave={onSave}
+            onSave={onSaveAiSettings}
             isSaving={isSaving}
           />
           {aiSettings?.[0]?.id && (
@@ -93,6 +126,24 @@ const AiSettingsPage = () => {
                 className="text-destructive"
                 aria-label="Delete"
                 onClick={() => onDelete(aiSettings?.[0].id)}
+              />
+            </TooltipWrapper>
+          )}
+        </div>
+        <div className="flex justify-between mt-[12px] mb-[22px] p-6 border rounded-[11px]">
+          <McpSettingsForm
+            onSave={onSaveMcpSettings}
+            isSaving={isSavingMcpSettings}
+            savedSettings={mcpSettings}
+          />
+          {mcpSettings?.amazonCost && (
+            <TooltipWrapper tooltipText={t('Delete')}>
+              <Trash
+                size={24}
+                role="button"
+                className="text-destructive"
+                aria-label="Delete"
+                onClick={() => onDeleteMcpSettings()}
               />
             </TooltipWrapper>
           )}
