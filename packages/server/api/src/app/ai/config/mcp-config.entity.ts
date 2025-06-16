@@ -18,10 +18,7 @@ export const McpConfigEntity = new EntitySchema<McpConfigSchema>({
     amazonCost: {
       type: JSONB_COLUMN_TYPE,
       nullable: true,
-      default: {
-        enabled: false,
-        connectionName: '',
-      },
+      default: '{"enabled": false, "connectionName": ""}',
     },
   },
   relations: {
