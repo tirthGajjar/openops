@@ -78,6 +78,15 @@ RUN <<-```
     python3 -m venv .venv && .venv/bin/pip install .
 ```
 
+WORKDIR /root/.mcp/cost-analysis-mcp
+RUN <<-```
+    set -ex
+    git clone https://github.com/awslabs/mcp.git .
+    cd src/cost-analysis-mcp-server
+    wget -qO- https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+    python3 -m venv .venv && .venv/bin/pip install .
+```
+
 
 WORKDIR /workspaces
 

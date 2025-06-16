@@ -92,6 +92,7 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
   [SharedSystemProp.AWS_ENABLE_IMPLICIT_ROLE]: 'false',
   [AppSystemProp.OPENOPS_MCP_SERVER_PATH]: '/root/.mcp/openops-mcp',
   [AppSystemProp.COST_EXPLORER_MCP_SERVER_PATH]: '/root/.mcp/cost-explorer-mcp',
+  [AppSystemProp.COST_ANALYSIS_MCP_SERVER_PATH]: '/root/.mcp/cost-analysis-mcp',
 };
 
 export const system = {
