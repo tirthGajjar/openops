@@ -6,6 +6,10 @@ import {
 } from '@openops/shared';
 import { McpConfigEntity } from '../../ai/config/mcp-config.entity';
 import { repoFactory } from '../../core/db/repo-factory';
+import {
+  sendMcpConfigDeletedEvent,
+  sendMcpConfigSavedEvent,
+} from '../../telemetry/event-models';
 
 const repo = repoFactory(McpConfigEntity);
 
@@ -31,14 +35,14 @@ export const mcpConfigService = {
 
     const config = await repo().save(aiConfig);
 
-    //TODO: Uncomment this when we have a way to send events
-    // sendAiConfigSavedEvent({
-    //   id: config.id,
-    //   userId: params.userId,
-    //   projectId: params.projectId,
-    //   provider: config.provider,
-    //   enabled: config.enabled ?? false,
-    // });
+    sendMcpConfigSavedEvent({
+      id: config.id,
+      userId: '',
+      projectId: params.projectId,
+      awsCost: config.awsCost,
+      created: aiConfig.created ?? '',
+      updated: aiConfig.updated ?? '',
+    });
 
     return config;
   },
@@ -46,8 +50,21 @@ export const mcpConfigService = {
   async get(projectId: string): Promise<McpConfig | undefined> {
     return getOneBy({ projectId });
   },
-  async delete(projectId: string): Promise<void> {
+  async delete({
+    projectId,
+    id,
+    userId,
+  }: {
+    projectId: string;
+    id: string;
+    userId: string;
+  }): Promise<void> {
     await repo().delete({ projectId });
+    sendMcpConfigDeletedEvent({
+      id,
+      userId,
+      projectId,
+    });
   },
 };
 

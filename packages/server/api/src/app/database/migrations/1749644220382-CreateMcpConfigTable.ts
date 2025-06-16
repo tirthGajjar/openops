@@ -11,7 +11,7 @@ export class CreateMcpConfigTable1749644220382 implements MigrationInterface {
           "created" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
           "updated" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
           "projectId" character varying(21) NOT NULL,
-          "amazonCost" jsonb DEFAULT '{"enabled": false, "connectionName": ""}',
+          "awsCost" jsonb DEFAULT '{"enabled": false, "connectionName": ""}',
           "enabled" boolean DEFAULT true,
           CONSTRAINT "PK_mcp_config_id" PRIMARY KEY ("id")
         );

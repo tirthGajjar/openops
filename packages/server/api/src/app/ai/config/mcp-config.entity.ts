@@ -15,7 +15,7 @@ export const McpConfigEntity = new EntitySchema<McpConfigSchema>({
   columns: {
     ...BaseColumnSchemaPart,
     projectId: OpenOpsIdSchema,
-    amazonCost: {
+    awsCost: {
       type: JSONB_COLUMN_TYPE,
       nullable: true,
       default: '{"enabled": false, "connectionName": ""}',

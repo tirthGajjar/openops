@@ -18,16 +18,14 @@ async function getAwsCredentials(
   projectId: string,
 ): Promise<AwsCredentials | null> {
   const mcpConfig = await mcpConfigService.get(projectId);
-  if (!mcpConfig?.amazonCost?.enabled) {
-    logger.debug(
-      'Amazon Cost is not enabled in MCP config, skipping AWS tools',
-    );
+  if (!mcpConfig?.awsCost?.enabled) {
+    logger.debug('AWS Cost is not enabled in MCP config, skipping AWS tools');
     return null;
   }
 
   const connection = await appConnectionService.getOne({
     projectId,
-    name: mcpConfig.amazonCost.connectionName,
+    name: mcpConfig.awsCost.connectionName,
   });
 
   if (!connection) {
@@ -58,36 +56,34 @@ async function getAwsCredentials(
   };
 }
 
-export async function getCostExplorerTools(
-  projectId: string,
-): Promise<MCPTool> {
-  const basePath = system.getOrThrow<string>(
-    AppSystemProp.COST_EXPLORER_MCP_SERVER_PATH,
-  );
+type McpServerConfig = {
+  basePath: string;
+  serverDir: string;
+  toolProvider: string;
+};
 
-  const pythonPath = path.join(basePath, '.venv', 'bin', 'python');
+async function initializeMcpClient(
+  config: McpServerConfig,
+  credentials: AwsCredentials,
+): Promise<MCPTool> {
+  const pythonPath = path.join(config.basePath, '.venv', 'bin', 'python');
   const serverPath = path.join(
-    basePath,
+    config.basePath,
     'awslabs',
-    'cost_explorer_mcp_server',
+    config.serverDir,
     'server.py',
   );
 
-  const credentials = await getAwsCredentials(projectId);
-  if (!credentials) {
-    return {
-      client: undefined,
-      toolSet: {},
-    };
-  }
+  logger.debug(
+    `Initializing ${config.toolProvider} MCP client with AWS credentials`,
+    {
+      region: credentials.region,
+      hasAccessKey: !!credentials.accessKeyId,
+      hasSecretKey: !!credentials.secretAccessKey,
+    },
+  );
 
-  logger.debug('Initializing cost explorer MCP client with AWS credentials', {
-    region: credentials.region,
-    hasAccessKey: !!credentials.accessKeyId,
-    hasSecretKey: !!credentials.secretAccessKey,
-  });
-
-  const costExplorerClient = await experimental_createMCPClient({
+  const client = await experimental_createMCPClient({
     transport: new Experimental_StdioMCPTransport({
       command: pythonPath,
       args: [serverPath],
@@ -95,83 +91,64 @@ export async function getCostExplorerTools(
         AWS_ACCESS_KEY_ID: credentials.accessKeyId,
         AWS_SECRET_ACCESS_KEY: credentials.secretAccessKey,
         AWS_REGION: credentials.region,
-        COST_EXPLORER_MCP_SERVER_PATH: basePath,
+        COST_EXPLORER_MCP_SERVER_PATH: config.basePath,
         AWS_SDK_LOAD_CONFIG: '1',
       },
     }),
   });
 
-  const tools = await costExplorerClient.tools();
+  const tools = await client.tools();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toolSet: Record<string, any> = {};
   for (const [key, tool] of Object.entries(tools)) {
     toolSet[key] = {
       ...tool,
-      toolProvider: 'cost-explorer',
+      toolProvider: config.toolProvider,
     };
   }
 
   return {
-    client: costExplorerClient,
+    client,
     toolSet,
   };
 }
 
-export async function getCostAnalysisTools(
+export async function getCostTools(
   projectId: string,
-): Promise<MCPTool> {
-  const basePath = system.getOrThrow<string>(
-    AppSystemProp.COST_ANALYSIS_MCP_SERVER_PATH,
-  );
-
-  const pythonPath = path.join(basePath, '.venv', 'bin', 'python');
-  const serverPath = path.join(
-    basePath,
-    'awslabs',
-    'cost_analysis_mcp_server',
-    'server.py',
-  );
-
+): Promise<{ costExplorer: MCPTool; costAnalysis: MCPTool }> {
   const credentials = await getAwsCredentials(projectId);
   if (!credentials) {
     return {
-      client: undefined,
-      toolSet: {},
+      costExplorer: { client: undefined, toolSet: {} },
+      costAnalysis: { client: undefined, toolSet: {} },
     };
   }
 
-  logger.debug('Initializing cost analysis MCP client with AWS credentials', {
-    region: credentials.region,
-    hasAccessKey: !!credentials.accessKeyId,
-    hasSecretKey: !!credentials.secretAccessKey,
-  });
+  const costExplorerBasePath = system.getOrThrow<string>(
+    AppSystemProp.COST_EXPLORER_MCP_SERVER_PATH,
+  );
+  const costAnalysisBasePath = system.getOrThrow<string>(
+    AppSystemProp.COST_ANALYSIS_MCP_SERVER_PATH,
+  );
 
-  const costAnalysisClient = await experimental_createMCPClient({
-    transport: new Experimental_StdioMCPTransport({
-      command: pythonPath,
-      args: [serverPath],
-      env: {
-        AWS_ACCESS_KEY_ID: credentials.accessKeyId,
-        AWS_SECRET_ACCESS_KEY: credentials.secretAccessKey,
-        AWS_REGION: credentials.region,
-        COST_EXPLORER_MCP_SERVER_PATH: basePath,
-        AWS_SDK_LOAD_CONFIG: '1',
+  const [costExplorer, costAnalysis] = await Promise.all([
+    initializeMcpClient(
+      {
+        basePath: costExplorerBasePath,
+        serverDir: 'cost_explorer_mcp_server',
+        toolProvider: 'cost-explorer',
       },
-    }),
-  });
+      credentials,
+    ),
+    initializeMcpClient(
+      {
+        basePath: costAnalysisBasePath,
+        serverDir: 'cost_analysis_mcp_server',
+        toolProvider: 'cost-analysis',
+      },
+      credentials,
+    ),
+  ]);
 
-  const tools = await costAnalysisClient.tools();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toolSet: Record<string, any> = {};
-  for (const [key, tool] of Object.entries(tools)) {
-    toolSet[key] = {
-      ...tool,
-      toolProvider: 'cost-analysis',
-    };
-  }
-
-  return {
-    client: costAnalysisClient,
-    toolSet,
-  };
+  return { costExplorer, costAnalysis };
 }

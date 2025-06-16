@@ -3,12 +3,12 @@ import { Static, Type } from '@sinclair/typebox';
 import { Resolver } from 'react-hook-form';
 
 export const MCP_SETTINGS_FORM_SCHEMA = Type.Object({
-  amazonCost: Type.Optional(
+  awsCost: Type.Optional(
     Type.Object({
       enabled: Type.Boolean(),
       connectionName: Type.String({
         minLength: 1,
-        errorMessage: 'Connection name is required when Amazon Cost is enabled',
+        errorMessage: 'Connection name is required when AWS Cost is enabled',
       }),
     }),
   ),
@@ -23,9 +23,9 @@ export const mcpFormSchemaResolver: Resolver<McpSettingsFormSchema> = async (
 ) => {
   const errors: Record<string, any> = {};
 
-  if (data?.amazonCost?.enabled && !data.amazonCost.connectionName) {
-    errors['amazonCost.connectionName'] = {
-      message: 'Connection name is required when Amazon Cost is enabled',
+  if (data?.awsCost?.enabled && !data.awsCost.connectionName) {
+    errors['awsCost.connectionName'] = {
+      message: 'Connection name is required when AWS Cost is enabled',
     };
   }
 

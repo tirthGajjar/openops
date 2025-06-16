@@ -25,7 +25,7 @@ type McpSettingsFormProps = {
 };
 
 export const EMPTY_MCP_FORM_VALUE: McpSettingsFormSchema = {
-  amazonCost: {
+  awsCost: {
     enabled: false,
     connectionName: '',
   },
@@ -91,7 +91,7 @@ const McpSettingsForm = ({
         <h1 className="text-lg font-bold">{t('MCP')}</h1>
         <FormField
           control={form.control}
-          name="amazonCost.enabled"
+          name="awsCost.enabled"
           render={({ field }) => (
             <FormItem className="flex gap-[6px]">
               <Checkbox
@@ -99,16 +99,16 @@ const McpSettingsForm = ({
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
-              <Label htmlFor="amazonCost.enabled">{t('Amazon cost')}</Label>
+              <Label htmlFor="awsCost.enabled">{t('AWS Cost')}</Label>
             </FormItem>
           )}
         />
         <FormField
           control={form.control}
-          name="amazonCost.connectionName"
+          name="awsCost.connectionName"
           render={({ field }) => (
             <FormItem className="flex flex-col gap-2">
-              <Label htmlFor="amazonCost.connectionName">
+              <Label htmlFor="awsCost.connectionName">
                 {t('Connection')}
                 <span className="text-destructive">*</span>
               </Label>
@@ -116,7 +116,7 @@ const McpSettingsForm = ({
                 loading={isAwsConnectionsLoading}
                 options={connectionOptions}
                 onChange={field.onChange}
-                disabled={!currentFormValue.amazonCost?.enabled}
+                disabled={!currentFormValue.awsCost?.enabled}
                 value={field.value}
                 placeholder={t('Select an option')}
               ></SearchableSelect>

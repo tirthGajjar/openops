@@ -1,4 +1,7 @@
-import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
+import {
+  FastifyPluginAsyncTypebox,
+  Type,
+} from '@fastify/type-provider-typebox';
 import {
   McpConfig,
   PrincipalType,
@@ -35,8 +38,12 @@ export const mcpConfigController: FastifyPluginAsyncTypebox = async (app) => {
     },
   );
 
-  app.delete('/', async (request, reply) => {
-    await mcpConfigService.delete(request.principal.projectId);
+  app.delete('/:id', mcpConfigIdRequest, async (request, reply) => {
+    await mcpConfigService.delete({
+      projectId: request.principal.projectId,
+      id: request.params.id,
+      userId: request.principal.id,
+    });
     return reply.status(StatusCodes.OK).send();
   });
 };
@@ -60,5 +67,19 @@ const getMcpConfigRequest = {
   schema: {
     tags: ['mcp-config'],
     description: 'Retrieves the MCP configuration for the current project.',
+  },
+};
+
+const mcpConfigIdRequest = {
+  config: {
+    allowedPrincipals: [PrincipalType.USER],
+  },
+  schema: {
+    tags: ['mcp-config'],
+    description:
+      'Get or delete an Mcp configuration by its ID. This endpoint allows you to retrieve or remove a specific AI configuration from the project.',
+    params: Type.Object({
+      id: Type.String(),
+    }),
   },
 };
