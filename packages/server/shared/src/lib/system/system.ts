@@ -90,10 +90,8 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
   [AppSystemProp.DOCS_MCP_SERVER_PATH]: '/root/.mcp/docs.openops.com',
   [AppSystemProp.LOAD_EXPERIMENTAL_MCP_TOOLS]: 'false',
   [SharedSystemProp.AWS_ENABLE_IMPLICIT_ROLE]: 'false',
-  [AppSystemProp.OPENOPS_MCP_SERVER_PATH]:
-    '/Users/cezardascal/openops/openops-mcp',
-  [AppSystemProp.COST_EXPLORER_MCP_SERVER_PATH]:
-    '/Users/cezardascal/openops/aws/mcp/src/cost-explorer-mcp-server',
+  [AppSystemProp.OPENOPS_MCP_SERVER_PATH]: '/root/.mcp/openops-mcp',
+  [AppSystemProp.COST_EXPLORER_MCP_SERVER_PATH]: '/root/.mcp/cost-explorer-mcp',
 };
 
 export const system = {
