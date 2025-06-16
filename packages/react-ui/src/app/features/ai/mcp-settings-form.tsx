@@ -87,42 +87,60 @@ const McpSettingsForm = ({
 
   return (
     <Form {...form}>
-      <form className="flex-1 flex flex-col gap-4 max-w-[516px]">
-        <h1 className="text-lg font-bold">{t('MCP')}</h1>
-        <FormField
-          control={form.control}
-          name="awsCost.enabled"
-          render={({ field }) => (
-            <FormItem className="flex gap-[6px]">
-              <Checkbox
-                id="aws-cost-enabled"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-              />
-              <Label htmlFor="awsCost.enabled">{t('AWS Cost')}</Label>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="awsCost.connectionName"
-          render={({ field }) => (
-            <FormItem className="flex flex-col gap-2">
-              <Label htmlFor="awsCost.connectionName">
-                {t('Connection')}
-                <span className="text-destructive">*</span>
-              </Label>
-              <SearchableSelect
-                loading={isAwsConnectionsLoading}
-                options={connectionOptions}
-                onChange={field.onChange}
-                disabled={!currentFormValue.awsCost?.enabled}
-                value={field.value}
-                placeholder={t('Select an option')}
-              ></SearchableSelect>
-            </FormItem>
-          )}
-        />
+      <form className="flex-1 flex flex-col gap-4 max-w-[720px]">
+        <span className="text-base bold font-bold">{t('MCP')}</span>
+        <span className="text-base bold font-bold mt-2">
+          {t('External tools:')}
+        </span>
+        <div className="flex gap-8 items-center">
+          <FormField
+            control={form.control}
+            name="awsCost.enabled"
+            render={({ field }) => (
+              <FormItem className="flex gap-[6px] space-x-1 items-center">
+                <Checkbox
+                  id="aws-cost-enabled"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  className="rounded-[3px] data-[state=checked]:!bg-primary-200 data-[state=checked]:!border-primary-200"
+                />
+                <Label
+                  htmlFor="awsCost.enabled"
+                  className="text-base mt-0 whitespace-nowrap font-normal"
+                  style={{ marginTop: '0rem' }}
+                >
+                  {t('AWS Cost')}{' '}
+                </Label>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="awsCost.connectionName"
+            render={({ field }) => (
+              <FormItem className="flex gap-8 items-center w-full">
+                <Label
+                  htmlFor="awsCost.connectionName"
+                  className="text-base font-normal"
+                >
+                  {t('Connection')}
+                  {currentFormValue.awsCost?.enabled && (
+                    <span className="text-destructive">*</span>
+                  )}
+                </Label>
+                <SearchableSelect
+                  loading={isAwsConnectionsLoading}
+                  options={connectionOptions}
+                  onChange={field.onChange}
+                  disabled={!currentFormValue.awsCost?.enabled}
+                  value={field.value}
+                  placeholder={t('Select a connection')}
+                  className="w-full"
+                ></SearchableSelect>
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="flex items-center justify-between ">
           <div className="flex gap-2">
