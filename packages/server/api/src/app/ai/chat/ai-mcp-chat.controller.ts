@@ -111,26 +111,29 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       provider: aiConfig.provider,
     });
 
-    const newMessages = await streamAIResponse({
-      userId,
-      chatId,
-      projectId,
-      aiConfig,
-      systemPrompt,
-      languageModel,
-      tools: filteredTools,
-      chatHistory: messages,
-      serverResponse: reply.raw,
-    });
+    try {
+      const newMessages = await streamAIResponse({
+        userId,
+        chatId,
+        projectId,
+        aiConfig,
+        systemPrompt,
+        languageModel,
+        tools: filteredTools,
+        chatHistory: messages,
+        serverResponse: reply.raw,
+      });
 
-    await appendMessagesToChatHistory(chatId, [
-      {
-        role: 'user',
-        content: request.body.message,
-      },
-      ...newMessages,
-    ]);
-    await closeMCPClients(mcpClients);
+      await appendMessagesToChatHistory(chatId, [
+        {
+          role: 'user',
+          content: request.body.message,
+        },
+        ...newMessages,
+      ]);
+    } finally {
+      await closeMCPClients(mcpClients);
+    }
   });
 
   app.delete('/:chatId', DeleteChatOptions, async (request, reply) => {

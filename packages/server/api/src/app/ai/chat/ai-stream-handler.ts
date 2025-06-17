@@ -80,8 +80,8 @@ async function streamMessages(
 ): Promise<StreamTextResult<ToolSet, never>> {
   let stepCount = 0;
 
-  const toolChoice =
-    !tools || Object.keys(tools).length === 0 ? 'auto' : 'none';
+  const hasTools = tools && Object.keys(tools).length !== 0;
+  const toolChoice = hasTools ? 'auto' : 'none';
 
   return streamText({
     model: languageModel,
@@ -113,5 +113,5 @@ function sendMessageToStream(
   responseStream: NodeJS.WritableStream,
   message: string,
 ): void {
-  responseStream.write(`0:"${message}"\n`);
+  responseStream.write(`0:${JSON.stringify(message)}\n`);
 }
