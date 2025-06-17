@@ -69,5 +69,38 @@ RUN <<-```
     uv venv && . .venv/bin/activate && uv pip install -r requirements.txt
 ```
 
+WORKDIR /root/.mcp/cost-explorer-mcp
+RUN <<-```
+    set -ex
+    git clone https://github.com/awslabs/mcp.git .
+    git checkout 2025.6.2025131704
+    wget -qO- https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+    if [ "$(uname -m)" = "x86_64" ]; then
+        uv python install 3.12
+        uv venv --python 3.12
+    else
+        python3 -m venv .venv
+    fi
+    cd src/cost-explorer-mcp-server
+    uv pip install .
+```
+
+WORKDIR /root/.mcp/cost-analysis-mcp
+RUN <<-```
+    set -ex
+    git clone https://github.com/awslabs/mcp.git .
+    git checkout 2025.6.2025131704
+    wget -qO- https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+    if [ "$(uname -m)" = "x86_64" ]; then
+        uv python install 3.12
+        uv venv --python 3.12
+    else
+        python3 -m venv .venv
+    fi
+    cd src/cost-analysis-mcp-server
+    uv pip install .
+```
+
+
 WORKDIR /workspaces
 
