@@ -82,7 +82,7 @@ RUN <<-```
 ENV PATH=/tmp/npm-global:$PATH
 
 COPY --link package.json package-lock.json .npmrc ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund --verbose
 COPY --link dist/packages/engine .
 COPY --link dist dist
 
