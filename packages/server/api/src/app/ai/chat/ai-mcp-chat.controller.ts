@@ -10,40 +10,24 @@ import {
   openOpsId,
   PrincipalType,
 } from '@openops/shared';
-import {
-  CoreAssistantMessage,
-  CoreMessage,
-  CoreToolMessage,
-  DataStreamWriter,
-  LanguageModel,
-  pipeDataStreamToResponse,
-  streamText,
-  TextPart,
-  ToolCallPart,
-  ToolChoice,
-  ToolResultPart,
-  ToolSet,
-} from 'ai';
+import { CoreMessage, LanguageModel, ToolSet } from 'ai';
+import { FastifyInstance } from 'fastify';
 import { StatusCodes } from 'http-status-codes';
-import {
-  sendAiChatFailureEvent,
-  sendAiChatMessageSendEvent,
-} from '../../telemetry/event-models/ai';
+import { sendAiChatMessageSendEvent } from '../../telemetry/event-models';
 import { aiConfigService } from '../config/ai-config.service';
 import { getMCPTools } from '../mcp/mcp-tools';
 import {
+  appendMessagesToChatHistory,
   createChatContext,
   deleteChatHistory,
   generateChatIdForMCP,
   getChatContext,
   getChatHistory,
-  saveChatHistory,
 } from './ai-chat.service';
-import { generateMessageId } from './ai-message-id-generator';
+import { streamAIResponse } from './ai-stream-handler';
 import { getMcpSystemPrompt } from './prompts.service';
 import { selectRelevantTools } from './tools.service';
 
-const MAX_RECURSION_DEPTH = 10;
 export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   app.post(
     '/open',
@@ -79,6 +63,7 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   );
   app.post('/', NewMessageOptions, async (request, reply) => {
     const chatId = request.body.chatId;
+    const userId = request.principal.id;
     const projectId = request.principal.projectId;
     const chatContext = await getChatContext(chatId);
     if (!chatContext) {
@@ -108,67 +93,16 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       content: request.body.message,
     });
 
-    const { mcpClients, tools } = await getMCPTools(
-      app,
-      request.headers.authorization?.replace('Bearer ', '') ?? '',
-    );
-
-    const filteredTools = await selectRelevantTools({
-      messages,
-      tools,
-      languageModel,
-      aiConfig,
-    });
-
-    const isAnalyticsLoaded = hasToolProvider(filteredTools, 'superset');
-    const isTablesLoaded = hasToolProvider(filteredTools, 'tables');
-    const isOpenOpsMCPEnabled = hasToolProvider(filteredTools, 'openops');
-
-    const systemPrompt = await getMcpSystemPrompt({
-      isAnalyticsLoaded,
-      isTablesLoaded,
-      isOpenOpsMCPEnabled,
-    });
-
-    pipeDataStreamToResponse(reply.raw, {
-      execute: async (dataStreamWriter) => {
-        logger.debug('Send user message to LLM.');
-        await streamMessages(
-          dataStreamWriter,
-          languageModel,
-          systemPrompt,
-          aiConfig,
-          messages,
-          chatId,
-          mcpClients,
-          {
-            ...filteredTools,
-            ...(isOpenOpsMCPEnabled
-              ? collectToolsByProvider(tools, 'openops')
-              : {}),
-          },
-        );
-      },
-
-      onError: (error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        sendAiChatFailureEvent({
-          projectId,
-          userId: request.principal.id,
-          chatId,
-          errorMessage: message,
-          provider: aiConfig.provider,
-          model: aiConfig.model,
-        });
-
-        endStreamWithErrorMessage(reply.raw, message);
-        closeMCPClients(mcpClients).catch((e) =>
-          logger.warn('Failed to close mcp client.', e),
-        );
-        logger.warn(message, error);
-        return message;
-      },
-    });
+    const authToken =
+      request.headers.authorization?.replace('Bearer ', '') ?? '';
+    const { mcpClients, filteredTools, systemPrompt } =
+      await getMCPToolsContext(
+        app,
+        authToken,
+        aiConfig,
+        messages,
+        languageModel,
+      );
 
     sendAiChatMessageSendEvent({
       projectId,
@@ -176,6 +110,27 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       chatId,
       provider: aiConfig.provider,
     });
+
+    const newMessages = await streamAIResponse({
+      userId,
+      chatId,
+      projectId,
+      aiConfig,
+      systemPrompt,
+      languageModel,
+      tools: filteredTools,
+      chatHistory: messages,
+      serverResponse: reply.raw,
+    });
+
+    await appendMessagesToChatHistory(chatId, [
+      {
+        role: 'user',
+        content: request.body.message,
+      },
+      ...newMessages,
+    ]);
+    await closeMCPClients(mcpClients);
   });
 
   app.delete('/:chatId', DeleteChatOptions, async (request, reply) => {
@@ -229,135 +184,14 @@ const DeleteChatOptions = {
   },
 };
 
-async function streamMessages(
-  dataStreamWriter: DataStreamWriter,
-  languageModel: LanguageModel,
-  systemPrompt: string,
-  aiConfig: AiConfig,
-  messages: CoreMessage[],
-  chatId: string,
-  mcpClients: unknown[],
-  tools?: ToolSet,
-): Promise<void> {
-  let stepCount = 0;
-
-  let toolChoice: ToolChoice<Record<string, never>> = 'auto';
-  if (!tools || Object.keys(tools).length === 0) {
-    toolChoice = 'none';
-    systemPrompt += `\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
-  }
-
-  const result = streamText({
-    model: languageModel,
-    system: systemPrompt,
-    messages,
-    ...aiConfig.modelSettings,
-    tools,
-    toolChoice,
-    maxRetries: 1,
-    maxSteps: MAX_RECURSION_DEPTH,
-    async onStepFinish({ finishReason }): Promise<void> {
-      stepCount++;
-      if (finishReason !== 'stop' && stepCount >= MAX_RECURSION_DEPTH) {
-        const message = `Maximum recursion depth (${MAX_RECURSION_DEPTH}) reached. Terminating recursion.`;
-        endStreamWithErrorMessage(dataStreamWriter, message);
-        logger.warn(message);
-      }
-    },
-    async onFinish({ response }): Promise<void> {
-      const filteredMessages = removeToolMessages(messages);
-      response.messages.forEach((r) => {
-        filteredMessages.push(getResponseObject(r));
-      });
-
-      await saveChatHistory(chatId, filteredMessages);
-      await closeMCPClients(mcpClients);
-    },
-  });
-
-  result.mergeIntoDataStream(dataStreamWriter);
-}
-
-function endStreamWithErrorMessage(
-  dataStreamWriter: NodeJS.WritableStream | DataStreamWriter,
-  message: string,
-): void {
-  dataStreamWriter.write(`f:{"messageId":"${generateMessageId()}"}\n`);
-
-  dataStreamWriter.write(`0:"${message}"\n`);
-
-  dataStreamWriter.write(
-    `e:{"finishReason":"stop","usage":{"promptTokens":null,"completionTokens":null},"isContinued":false}\n`,
-  );
-  dataStreamWriter.write(
-    `d:{"finishReason":"stop","usage":{"promptTokens":null,"completionTokens":null}}\n`,
-  );
-}
-
-function removeToolMessages(messages: CoreMessage[]): CoreMessage[] {
-  return messages.filter((m) => {
-    if (m.role === 'tool') {
-      return false;
-    }
-
-    if (m.role === 'assistant' && Array.isArray(m.content)) {
-      const newContent = m.content.filter((part) => part.type !== 'tool-call');
-
-      if (newContent.length === 0) {
-        return false;
-      }
-
-      m.content = newContent;
-    }
-
-    return true;
-  });
-}
-
-function getResponseObject(
-  message: CoreAssistantMessage | CoreToolMessage,
-): CoreToolMessage | CoreAssistantMessage {
-  const { role, content } = message;
-
-  if (role === 'tool') {
-    return {
-      role: message.role,
-      content: message.content as ToolResultPart[],
-    };
-  }
-
-  if (Array.isArray(content)) {
-    let hasToolCall = false;
-
-    for (const part of content) {
-      if (part.type === 'tool-call') {
-        hasToolCall = true;
-      } else if (part.type !== 'text') {
-        return {
-          role: 'assistant',
-          content: `Invalid message type received. Type: ${part.type}`,
-        };
-      }
-    }
-
-    return {
-      role,
-      content: hasToolCall
-        ? (content as ToolCallPart[])
-        : (content as TextPart[]),
-    };
-  }
-
-  return {
-    role: 'assistant',
-    content,
-  };
-}
-
 async function closeMCPClients(mcpClients: unknown[]): Promise<void> {
-  for (const mcpClient of mcpClients) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (mcpClient as any)?.close();
+  try {
+    for (const mcpClient of mcpClients) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (mcpClient as any)?.close();
+    }
+  } catch (error) {
+    logger.warn('Failed to close mcp client.', error);
   }
 }
 
@@ -381,4 +215,48 @@ export function hasToolProvider(
   return Object.values(tools ?? {}).some(
     (tool) => (tool as { toolProvider?: string }).toolProvider === provider,
   );
+}
+
+async function getMCPToolsContext(
+  app: FastifyInstance,
+  authToken: string,
+  aiConfig: AiConfig,
+  messages: CoreMessage[],
+  languageModel: LanguageModel,
+): Promise<{
+  mcpClients: unknown[];
+  systemPrompt: string;
+  filteredTools?: ToolSet;
+}> {
+  const { mcpClients, tools } = await getMCPTools(app, authToken);
+
+  const filteredTools = await selectRelevantTools({
+    messages,
+    tools,
+    languageModel,
+    aiConfig,
+  });
+
+  const isAnalyticsLoaded = hasToolProvider(filteredTools, 'superset');
+  const isTablesLoaded = hasToolProvider(filteredTools, 'tables');
+  const isOpenOpsMCPEnabled = hasToolProvider(filteredTools, 'openops');
+
+  let systemPrompt = await getMcpSystemPrompt({
+    isAnalyticsLoaded,
+    isTablesLoaded,
+    isOpenOpsMCPEnabled,
+  });
+
+  if (!tools || Object.keys(tools).length === 0) {
+    systemPrompt += `\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
+  }
+
+  return {
+    mcpClients,
+    systemPrompt,
+    filteredTools: {
+      ...filteredTools,
+      ...(isOpenOpsMCPEnabled ? collectToolsByProvider(tools, 'openops') : {}),
+    },
+  };
 }

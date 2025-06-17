@@ -92,6 +92,7 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
   [SharedSystemProp.AWS_ENABLE_IMPLICIT_ROLE]: 'false',
   [AppSystemProp.OPENOPS_MCP_SERVER_PATH]: '/root/.mcp/openops-mcp',
   [AppSystemProp.SAMPLE_DATA_SIZE_LIMIT_KB]: '5',
+  [AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION]: '10',
 };
 
 export const system = {
