@@ -2,7 +2,7 @@ const decryptStringMock = jest.fn().mockReturnValue('test-encrypt');
 
 import { getAiProviderLanguageModel } from '@openops/common';
 import { AiProviderEnum, PrincipalType } from '@openops/shared';
-import { LanguageModel, pipeDataStreamToResponse, streamText } from 'ai';
+import { LanguageModel, streamText } from 'ai';
 import {
   FastifyInstance,
   FastifyPluginOptions,
@@ -37,6 +37,9 @@ jest.mock('@openops/server-shared', () => ({
         return 'TESTING';
       }
       return 'mock-value';
+    }),
+    getNumberOrThrow: jest.fn(() => {
+      return 2;
     }),
   },
   AppSystemProp: {
@@ -75,6 +78,7 @@ jest.mock('../../../src/app/ai/chat/ai-chat.service', () => ({
   saveChatHistory: jest.fn(),
   generateChatIdForMCP: jest.fn(),
   createChatContext: jest.fn(),
+  appendMessagesToChatHistory: jest.fn(),
 }));
 
 jest.mock('../../../src/app/ai/chat/prompts.service', () => ({
@@ -85,27 +89,12 @@ jest.mock('../../../src/app/ai/chat/tools.service', () => ({
   selectRelevantTools: jest.fn(),
 }));
 
-type MockDataStreamWriter = {
-  write: jest.Mock;
-  end: jest.Mock;
-};
-
 jest.mock('ai', () => {
   const mockStreamText = jest.fn().mockReturnValue({
     mergeIntoDataStream: jest.fn(),
   });
 
   return {
-    pipeDataStreamToResponse: jest.fn((_, options) => {
-      if (options?.execute) {
-        const mockWriter: MockDataStreamWriter = {
-          write: jest.fn(),
-          end: jest.fn(),
-        };
-        options.execute(mockWriter);
-      }
-      return { pipe: jest.fn() };
-    }),
     streamText: mockStreamText,
     DataStreamWriter: jest.fn(),
     LanguageModel: jest.fn(),
@@ -358,7 +347,7 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
         },
       },
     ])(
-      'should pass filtered tools to streamText via pipeDataStreamToResponse with $selectedTools',
+      'should pass filtered tools to streamText with $selectedTools',
       async ({ selectedTools, expected }) => {
         (getMCPTools as jest.Mock).mockResolvedValue(mockAllTools);
         (selectRelevantTools as jest.Mock).mockResolvedValue(selectedTools);
@@ -374,7 +363,6 @@ describe('AI MCP Chat Controller - Tool Service Interactions', () => {
           isTablesLoaded: expected.isTablesLoaded,
           isOpenOpsMCPEnabled: expected.isOpenOpsMCPEnabled,
         });
-        expect(pipeDataStreamToResponse).toHaveBeenCalled();
         expect(streamText).toHaveBeenCalledWith(
           expect.objectContaining({
             tools: selectedTools ?? {},

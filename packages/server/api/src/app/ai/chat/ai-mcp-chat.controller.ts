@@ -250,7 +250,7 @@ async function getMCPToolsContext(
     isOpenOpsMCPEnabled,
   });
 
-  if (!tools || Object.keys(tools).length === 0) {
+  if (!filteredTools || Object.keys(filteredTools).length === 0) {
     systemPrompt += `\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
   }
 
