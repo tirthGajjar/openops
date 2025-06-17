@@ -39,7 +39,7 @@ RUN <<-```
     git clone https://github.com/awslabs/mcp.git .
     cd src/cost-explorer-mcp-server
     wget -qO- https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
-    uv venv && . .venv/bin/activate && .venv/bin/pip install .
+    python3 -m venv .venv && .venv/bin/pip install .
 ```
 
 WORKDIR /root/.mcp/cost-analysis-mcp
@@ -48,7 +48,7 @@ RUN <<-```
     git clone https://github.com/awslabs/mcp.git .
     cd src/cost-analysis-mcp-server
     wget -qO- https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
-    uv venv && . .venv/bin/activate && .venv/bin/pip install .
+    python3 -m venv .venv && .venv/bin/pip install .
 ```
 
 
