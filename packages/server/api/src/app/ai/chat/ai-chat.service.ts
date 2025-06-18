@@ -5,7 +5,7 @@ import {
 } from '@openops/server-shared';
 import { CoreMessage } from 'ai';
 
-// Chat expiration time is 24 hour
+// Chat expiration time is 24 hours
 const DEFAULT_EXPIRE_TIME = 86400;
 const LOCK_EXPIRE_TIME = 30000;
 
@@ -130,12 +130,20 @@ export const getChatHistoryContext = async (
   return messages ?? [];
 };
 
+export const saveChatHistoryContext = async (
+  chatId: string,
+  messages: CoreMessage[],
+): Promise<void> => {
+  await cacheWrapper.setSerializedObject(
+    chatHistoryContextKey(chatId),
+    messages,
+    DEFAULT_EXPIRE_TIME,
+  );
+};
+
 export async function appendMessagesToChatHistoryContext(
   chatId: string,
   newMessages: CoreMessage[],
-  summarizeMessages?: (
-    existingMessages: CoreMessage[],
-  ) => Promise<CoreMessage[]>,
 ): Promise<CoreMessage[]> {
   const historyLock = await distributedLock.acquireLock({
     key: `lock:${chatHistoryContextKey(chatId)}`,
@@ -143,11 +151,7 @@ export async function appendMessagesToChatHistoryContext(
   });
 
   try {
-    let existingMessages = await getChatHistoryContext(chatId);
-
-    if (summarizeMessages) {
-      existingMessages = await summarizeMessages(existingMessages);
-    }
+    const existingMessages = await getChatHistoryContext(chatId);
 
     existingMessages.push(...newMessages);
 

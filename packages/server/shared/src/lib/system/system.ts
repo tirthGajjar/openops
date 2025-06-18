@@ -93,6 +93,8 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
   [AppSystemProp.OPENOPS_MCP_SERVER_PATH]: '/root/.mcp/openops-mcp',
   [AppSystemProp.SAMPLE_DATA_SIZE_LIMIT_KB]: '5',
   [AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION]: '10',
+  [AppSystemProp.MAX_USER_INTERACTIONS_FOR_SUMMARY]: '2',
+  [AppSystemProp.MAX_TOKENS_FOR_HISTORY_SUMMARY]: '2000',
 };
 
 export const system = {
