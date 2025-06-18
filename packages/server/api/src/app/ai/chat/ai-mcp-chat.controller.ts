@@ -2,7 +2,6 @@ import { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { getAiProviderLanguageModel } from '@openops/common';
 import { encryptUtils, logger } from '@openops/server-shared';
 import {
-  AiConfig,
   DeleteChatHistoryRequest,
   NewMessageRequest,
   OpenChatMCPRequest,
@@ -10,23 +9,17 @@ import {
   openOpsId,
   PrincipalType,
 } from '@openops/shared';
-import { CoreMessage, LanguageModel, ToolSet } from 'ai';
-import { FastifyInstance } from 'fastify';
+import { CoreMessage } from 'ai';
 import { StatusCodes } from 'http-status-codes';
-import { sendAiChatMessageSendEvent } from '../../telemetry/event-models';
 import { aiConfigService } from '../config/ai-config.service';
-import { getMCPTools } from '../mcp/mcp-tools';
 import {
-  appendMessagesToChatHistory,
   createChatContext,
   deleteChatHistory,
   generateChatIdForMCP,
   getChatContext,
   getChatHistory,
 } from './ai-chat.service';
-import { streamAIResponse } from './ai-stream-handler';
-import { getMcpSystemPrompt } from './prompts.service';
-import { selectRelevantTools } from './tools.service';
+import { handleUserMessage } from './ai-response-handler';
 
 export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   app.post(
@@ -63,7 +56,6 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
   );
   app.post('/', NewMessageOptions, async (request, reply) => {
     const chatId = request.body.chatId;
-    const userId = request.principal.id;
     const projectId = request.principal.projectId;
     const chatContext = await getChatContext(chatId);
     if (!chatContext) {
@@ -87,53 +79,25 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       providerSettings: aiConfig.providerSettings,
     });
 
-    const messages = await getChatHistory(chatId);
-    messages.push({
-      role: 'user',
-      content: request.body.message,
-    });
-
     const authToken =
       request.headers.authorization?.replace('Bearer ', '') ?? '';
-    const { mcpClients, filteredTools, systemPrompt } =
-      await getMCPToolsContext(
-        app,
-        authToken,
-        aiConfig,
-        messages,
-        languageModel,
-      );
 
-    sendAiChatMessageSendEvent({
-      projectId,
-      userId: request.principal.id,
+    const newMessage: CoreMessage = {
+      role: 'user',
+      content: request.body.message,
+    };
+
+    await handleUserMessage({
+      app,
       chatId,
-      provider: aiConfig.provider,
+      aiConfig,
+      projectId,
+      authToken,
+      newMessage,
+      languageModel,
+      serverResponse: reply.raw,
+      userId: request.principal.id,
     });
-
-    try {
-      const newMessages = await streamAIResponse({
-        userId,
-        chatId,
-        projectId,
-        aiConfig,
-        systemPrompt,
-        languageModel,
-        tools: filteredTools,
-        chatHistory: messages,
-        serverResponse: reply.raw,
-      });
-
-      await appendMessagesToChatHistory(chatId, [
-        {
-          role: 'user',
-          content: request.body.message,
-        },
-        ...newMessages,
-      ]);
-    } finally {
-      await closeMCPClients(mcpClients);
-    }
   });
 
   app.delete('/:chatId', DeleteChatOptions, async (request, reply) => {
@@ -186,80 +150,3 @@ const DeleteChatOptions = {
     params: DeleteChatHistoryRequest,
   },
 };
-
-async function closeMCPClients(mcpClients: unknown[]): Promise<void> {
-  try {
-    for (const mcpClient of mcpClients) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (mcpClient as any)?.close();
-    }
-  } catch (error) {
-    logger.warn('Failed to close mcp client.', error);
-  }
-}
-
-function collectToolsByProvider(
-  tools: ToolSet | undefined,
-  provider: string,
-): ToolSet {
-  const result: ToolSet = {};
-  for (const [key, tool] of Object.entries(tools ?? {})) {
-    if ((tool as { toolProvider?: string }).toolProvider === provider) {
-      result[key] = tool;
-    }
-  }
-  return result;
-}
-
-export function hasToolProvider(
-  tools: ToolSet | undefined,
-  provider: string,
-): boolean {
-  return Object.values(tools ?? {}).some(
-    (tool) => (tool as { toolProvider?: string }).toolProvider === provider,
-  );
-}
-
-async function getMCPToolsContext(
-  app: FastifyInstance,
-  authToken: string,
-  aiConfig: AiConfig,
-  messages: CoreMessage[],
-  languageModel: LanguageModel,
-): Promise<{
-  mcpClients: unknown[];
-  systemPrompt: string;
-  filteredTools?: ToolSet;
-}> {
-  const { mcpClients, tools } = await getMCPTools(app, authToken);
-
-  const filteredTools = await selectRelevantTools({
-    messages,
-    tools,
-    languageModel,
-    aiConfig,
-  });
-
-  const isAnalyticsLoaded = hasToolProvider(filteredTools, 'superset');
-  const isTablesLoaded = hasToolProvider(filteredTools, 'tables');
-  const isOpenOpsMCPEnabled = hasToolProvider(filteredTools, 'openops');
-
-  let systemPrompt = await getMcpSystemPrompt({
-    isAnalyticsLoaded,
-    isTablesLoaded,
-    isOpenOpsMCPEnabled,
-  });
-
-  if (!filteredTools || Object.keys(filteredTools).length === 0) {
-    systemPrompt += `\n\nMCP tools are not available in this chat. Do not claim access or simulate responses from them under any circumstance.`;
-  }
-
-  return {
-    mcpClients,
-    systemPrompt,
-    filteredTools: {
-      ...filteredTools,
-      ...(isOpenOpsMCPEnabled ? collectToolsByProvider(tools, 'openops') : {}),
-    },
-  };
-}

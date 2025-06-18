@@ -1,89 +1,37 @@
 import { AppSystemProp, logger, system } from '@openops/server-shared';
 import { AiConfig } from '@openops/shared';
-import {
-  CoreMessage,
-  LanguageModel,
-  streamText,
-  StreamTextResult,
-  ToolSet,
-} from 'ai';
-import { sendAiChatFailureEvent } from '../../telemetry/event-models';
-import { generateMessageId } from './ai-message-id-generator';
+import { CoreMessage, LanguageModel, streamText, ToolSet } from 'ai';
 
 const maxRecursionDepth = system.getNumberOrThrow(
   AppSystemProp.MAX_LLM_CALLS_WITHOUT_INTERACTION,
 );
 
-export type StreamParams = {
-  userId: string;
-  chatId: string;
-  projectId: string;
+type AICallSettings = {
   tools?: ToolSet;
   aiConfig: AiConfig;
   systemPrompt: string;
+  newMessages: CoreMessage[];
   chatHistory: CoreMessage[];
   languageModel: LanguageModel;
   serverResponse: NodeJS.WritableStream;
 };
 
-export async function streamAIResponse(
-  streamParams: StreamParams,
-): Promise<CoreMessage[]> {
-  const { aiConfig, chatId, serverResponse } = streamParams;
-  const newMessages: CoreMessage[] = [];
-
-  serverResponse.write(`f:{"messageId":"${generateMessageId()}"}\n`);
-
-  const { textStream } = await streamMessages(
+export async function streamAIResponse(params: AICallSettings): Promise<void> {
+  const {
     serverResponse,
-    streamParams.languageModel,
-    streamParams.systemPrompt,
-    aiConfig,
-    streamParams.chatHistory,
+    languageModel,
+    systemPrompt,
+    chatHistory,
     newMessages,
-    streamParams.tools,
-  );
-
-  try {
-    for await (const textPart of textStream) {
-      sendMessageToStream(serverResponse, textPart);
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    sendAiChatFailureEvent({
-      projectId: streamParams.projectId,
-      userId: streamParams.userId,
-      chatId,
-      errorMessage: message,
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-    });
-
-    sendMessageToStream(serverResponse, message);
-    logger.warn(message, error);
-  }
-
-  serverResponse.write(`d:{"finishReason":"stop"}\n`);
-  serverResponse.end();
-
-  return newMessages;
-}
-
-async function streamMessages(
-  responseStream: NodeJS.WritableStream,
-  languageModel: LanguageModel,
-  systemPrompt: string,
-  aiConfig: AiConfig,
-  chatHistory: CoreMessage[],
-  newMessages: CoreMessage[],
-  tools?: ToolSet,
-): Promise<StreamTextResult<ToolSet, never>> {
+    aiConfig,
+    tools,
+  } = params;
   let stepCount = 0;
 
   const hasTools = tools && Object.keys(tools).length !== 0;
   const toolChoice = hasTools ? 'auto' : 'none';
 
-  return streamText({
+  const { textStream } = streamText({
     model: languageModel,
     system: systemPrompt,
     messages: chatHistory,
@@ -96,17 +44,28 @@ async function streamMessages(
       stepCount++;
       if (finishReason !== 'stop' && stepCount >= maxRecursionDepth) {
         const message = `Maximum recursion depth (${maxRecursionDepth}) reached. Terminating recursion.`;
-        sendMessageToStream(responseStream, message);
+        sendMessageToStream(serverResponse, message);
         logger.warn(message);
       }
     },
     async onError({ error }): Promise<void> {
       throw error;
     },
-    async onFinish({ response }): Promise<void> {
-      newMessages.push(...response.messages);
+    async onFinish(result): Promise<void> {
+      if (result.finishReason === 'length') {
+        throw new Error(
+          'The message was truncated because the maximum tokens for the context window was reached.',
+        );
+      }
+
+      const messages = result.response.messages;
+      newMessages.push(...messages);
     },
   });
+
+  for await (const textPart of textStream) {
+    sendMessageToStream(params.serverResponse, textPart);
+  }
 }
 
 function sendMessageToStream(
