@@ -155,11 +155,7 @@ export async function appendMessagesToChatHistoryContext(
 
     existingMessages.push(...newMessages);
 
-    await cacheWrapper.setSerializedObject(
-      chatHistoryContextKey(chatId),
-      existingMessages,
-      DEFAULT_EXPIRE_TIME,
-    );
+    await saveChatHistoryContext(chatId, existingMessages);
 
     return existingMessages;
   } finally {
