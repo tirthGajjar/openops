@@ -11,9 +11,12 @@ import {
   appendMessagesToChatHistoryContext,
   saveChatHistoryContext,
 } from './ai-chat.service';
+import {
+  shouldTryToSummarize,
+  summarizeChatHistory,
+} from './ai-history-summarizer';
 import { generateMessageId } from './ai-message-id-generator';
 import { streamAIResponse } from './ai-stream-handler';
-import { shouldTryToSummarize, summarizeChatHistory } from './ai-history-summarizer';
 import { getMCPToolsContext, MCPToolsContext } from './tools.service';
 
 type RequestContext = {
@@ -210,6 +213,7 @@ async function getMCPToolsContextWithRetry(
       try {
         return await getMCPToolsContext(
           app,
+          projectId,
           authToken,
           aiConfig,
           chatCurrentContext.chatHistory,
