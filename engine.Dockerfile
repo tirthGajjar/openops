@@ -7,7 +7,7 @@ ENV NODE_VERSION=20.18.0
 ENV NODE_ENV=production
 
 # Preinstall heavy NPM packages
-RUN npm install -g msgpackr@1.10.1
+RUN npm install -g msgpackr@1.10.1 msgpackr-extract@3.0.2
 
 RUN <<-```
     set -ex
