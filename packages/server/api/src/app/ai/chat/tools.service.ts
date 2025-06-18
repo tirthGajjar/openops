@@ -21,12 +21,13 @@ export type MCPToolsContext = {
 
 export async function getMCPToolsContext(
   app: FastifyInstance,
+  projectId: string,
   authToken: string,
   aiConfig: AiConfig,
   messages: CoreMessage[],
   languageModel: LanguageModelV1,
 ): Promise<MCPToolsContext> {
-  const { mcpClients, tools } = await getMCPTools(app, authToken);
+  const { mcpClients, tools } = await getMCPTools(app, authToken, projectId);
 
   const filteredTools = await selectRelevantTools({
     messages,
@@ -60,11 +61,11 @@ export async function getMCPToolsContext(
 }
 
 async function selectRelevantTools({
-                                     messages,
-                                     tools,
-                                     languageModel,
-                                     aiConfig,
-                                   }: {
+  messages,
+  tools,
+  languageModel,
+  aiConfig,
+}: {
   messages: CoreMessage[];
   tools: ToolSet;
   languageModel: LanguageModel;

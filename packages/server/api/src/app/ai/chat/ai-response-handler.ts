@@ -71,6 +71,7 @@ export async function handleUserMessage(
   const { mcpClients, filteredTools, systemPrompt } =
     await getMCPToolsContextWithRetry(
       app,
+      projectId,
       authToken,
       aiConfig,
       languageModel,
@@ -160,6 +161,7 @@ function unrecoverableError(
 
 async function getMCPToolsContextWithRetry(
   app: FastifyInstance,
+  projectId: string,
   authToken: string,
   aiConfig: AiConfig,
   languageModel: LanguageModelV1,
@@ -168,6 +170,7 @@ async function getMCPToolsContextWithRetry(
   try {
     return await getMCPToolsContext(
       app,
+      projectId,
       authToken,
       aiConfig,
       chatCurrentContext.chatHistory,
