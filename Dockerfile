@@ -6,7 +6,9 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 ENV NODE_ENV=production
 
-# Use a cache mount for apt to speed up the process
+# Preinstall heavy NPM packages
+RUN npm install -g msgpackr@1.10.1
+
 RUN <<-```
     set -ex
     apk add --no-cache openssh-client python3 g++ git musl libcap-dev nginx gettext wget py3-setuptools make bash findutils
@@ -40,7 +42,7 @@ WORKDIR /usr/src/app
 # the node_modules directory in the build context. Including it in the build context means that we will always
 # waste time on copying these 2.2GB even if no packages were changed.
 COPY --link package.json package-lock.json .npmrc ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund --verbose
 COPY --link dist dist
 
 COPY tools/link-packages-to-root.sh tools/link-packages-to-root.sh

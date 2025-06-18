@@ -6,6 +6,9 @@ ARG TARGETARCH
 ENV NODE_VERSION=20.18.0
 ENV NODE_ENV=production
 
+# Preinstall heavy NPM packages
+RUN npm install -g msgpackr@1.10.1
+
 RUN <<-```
     set -ex
     dnf install tar gzip shadow-utils util-linux findutils python3 make gcc gcc-c++ zlib-devel brotli-devel openssl-devel -y
