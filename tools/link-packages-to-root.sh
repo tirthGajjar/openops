@@ -6,7 +6,19 @@
 
 set -e
 
-SPECIFIC_BLOCKS=("$@")
+# Filter out nx-specific arguments that might be passed through
+SPECIFIC_BLOCKS=()
+for arg in "$@"; do
+    # Skip nx flags and options
+    if [[ "$arg" == --* ]] || [[ "$arg" == -* ]]; then
+        continue
+    fi
+    # Skip empty arguments
+    if [[ -n "$arg" ]]; then
+        SPECIFIC_BLOCKS+=("$arg")
+    fi
+done
+
 LINKED_COUNT=0
 FAILED_COUNT=0
 
