@@ -46,27 +46,6 @@ function getBlockDirectories() {
 module.exports = composePlugins(withNx(), (config) => {
   config.plugins.push(new IgnoreDynamicRequire());
 
-  // For production builds, configure externals to exclude @openops/server-shared
-  if (process.env.NODE_ENV === 'production') {
-    // Override externals to not externalize @openops/server-shared and @openops/shared
-    config.externals = function (context, request, callback) {
-      // Don't externalize these OpenOps workspace packages - bundle them instead
-      if (
-        request === '@openops/server-shared' ||
-        request === '@openops/shared'
-      ) {
-        return callback();
-      }
-
-      // Externalize all other node_modules
-      if (/^[a-z@][a-z.\-0-9]*/.test(request)) {
-        return callback(null, 'commonjs ' + request);
-      }
-
-      return callback();
-    };
-  }
-
   // Only add smart block watching in development
   if (process.env.NODE_ENV !== 'production') {
     // Enhanced webpack plugin for smarter block watching
@@ -100,49 +79,32 @@ module.exports = composePlugins(withNx(), (config) => {
                 pathParts[2]
               ) {
                 changedBlocks.add(pathParts[2]);
+                console.log(
+                  `[API Server] Detected change in block: ${pathParts[2]}`,
+                );
               }
             }
           },
         );
 
-        // Coordinate builds between API and Engine servers
+        // Simple build coordination - just log changes, let external tools handle builds
         compiler.hooks.beforeCompile.tapAsync(
           'SmartBlockWatcher',
           (params, callback) => {
             if (isInitialBuild) {
               isInitialBuild = false;
-              callback();
-              return;
             }
 
             if (changedBlocks.size > 0) {
               console.log(
-                `[API Server] Detected changes in blocks: ${Array.from(
+                `[API Server] Changes detected in blocks: ${Array.from(
                   changedBlocks,
-                ).join(', ')}`,
+                ).join(', ')} - please rebuild manually if needed`,
               );
-
-              // Import and call the incremental build function
-              const { buildSpecificBlocks } = require('@openops/server-shared');
-              const blockPaths = Array.from(changedBlocks).map((block) =>
-                path.join(__dirname, '../../blocks', block),
-              );
-
-              buildSpecificBlocks(blockPaths)
-                .then(() => {
-                  changedBlocks.clear();
-                  callback();
-                })
-                .catch((error) => {
-                  console.error(
-                    '[API Server] Failed to build changed blocks:',
-                    error,
-                  );
-                  callback();
-                });
-            } else {
-              callback();
+              changedBlocks.clear();
             }
+
+            callback();
           },
         );
       },
