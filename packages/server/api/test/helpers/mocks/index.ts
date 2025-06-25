@@ -222,7 +222,6 @@ export const createMockFlowVersion = (
   flowVersion?: Partial<FlowVersion>,
 ): FlowVersion => {
   const emptyTrigger = {
-    id: 'trigger',
     type: TriggerType.EMPTY,
     name: 'trigger',
     settings: {},
@@ -246,7 +245,6 @@ export const createMockFlowVersion = (
 
 export const createMockTrigger = (): Trigger => {
   return {
-    id: 'trigger',
     type: TriggerType.EMPTY,
     name: 'trigger',
     settings: {},

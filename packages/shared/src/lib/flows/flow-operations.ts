@@ -9,7 +9,7 @@ import {
   SplitActionSchema,
 } from './actions/action';
 import { FlowStatus } from './flow';
-import { Trigger, TriggerWithOptionalId } from './triggers/trigger';
+import { BlockTrigger, EmptyTrigger, Trigger } from './triggers/trigger';
 
 export enum FlowOperationType {
   LOCK_AND_PUBLISH = 'LOCK_AND_PUBLISH',
@@ -59,7 +59,7 @@ export type AppConnectionsWithSupportedBlocks = Static<
 export const ImportFlowRequest = Type.Object({
   displayName: Type.String({}),
   description: Type.Optional(Type.String({})),
-  trigger: Type.Omit(Trigger, ['id']),
+  trigger: Trigger,
   connections: Type.Optional(Type.Array(AppConnectionsWithSupportedBlocks)),
 });
 
@@ -118,6 +118,9 @@ export const AddActionRequest = Type.Object({
   action: UpdateActionRequest,
 });
 export type AddActionRequest = Static<typeof AddActionRequest>;
+
+export const UpdateTriggerRequest = Type.Union([EmptyTrigger, BlockTrigger]);
+export type UpdateTriggerRequest = Static<typeof UpdateTriggerRequest>;
 
 export const UpdateFlowStatusRequest = Type.Object({
   status: Type.Enum(FlowStatus),
@@ -238,7 +241,7 @@ export const FlowOperationRequest = Type.Union([
   Type.Object(
     {
       type: Type.Literal(FlowOperationType.UPDATE_TRIGGER),
-      request: TriggerWithOptionalId,
+      request: UpdateTriggerRequest,
     },
     {
       title: 'Update Trigger',

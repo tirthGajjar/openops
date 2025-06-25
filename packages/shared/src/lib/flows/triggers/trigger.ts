@@ -10,7 +10,7 @@ export enum TriggerType {
 }
 
 const commonProps = {
-  id: Type.String(),
+  id: Type.Optional(Type.String()),
   name: Type.String({}),
   valid: Type.Boolean({}),
   displayName: Type.String({}),
@@ -48,12 +48,3 @@ export type BlockTrigger = Static<typeof BlockTrigger>;
 export const Trigger = Type.Union([BlockTrigger, EmptyTrigger]);
 
 export type Trigger = Static<typeof Trigger>;
-
-export type TriggerWithOptionalId = Static<typeof TriggerWithOptionalId>;
-
-export const TriggerWithOptionalId = Type.Intersect([
-  Type.Omit(Trigger, ['id']),
-  Type.Object({
-    id: Type.Optional(Type.String()),
-  }),
-]);

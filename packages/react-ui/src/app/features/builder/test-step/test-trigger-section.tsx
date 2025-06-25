@@ -177,12 +177,14 @@ const TestTriggerSection = React.memo(
     const isTesting = isPending || isLoadingTestOutput;
 
     function updateSelectedData(data: TriggerEvent) {
-      stepTestOutputCache.setStepData(formValues.id, {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      stepTestOutputCache.setStepData(formValues.id!, {
         output: formatUtils.formatStepInputOrOutput(data.payload),
         lastTestDate: dayjs().toISOString(),
       });
       setStepOutputCache({
-        stepId: formValues.id,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        stepId: formValues.id!,
         flowVersionId,
         output: data.payload,
         queryClient,

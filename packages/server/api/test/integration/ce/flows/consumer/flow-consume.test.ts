@@ -69,7 +69,6 @@ describe('flow execution', () => {
       updatedBy: mockUser.id,
       state: FlowVersionState.LOCKED,
       trigger: {
-        id: 'trigger',
         type: TriggerType.BLOCK,
         settings: {
           blockName: '@openops/block-schedule',

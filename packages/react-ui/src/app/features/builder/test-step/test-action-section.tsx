@@ -85,7 +85,8 @@ const TestActionSection = React.memo(
         if (stepResponse.success) {
           setErrorMessage(undefined);
           setStepOutputCache({
-            stepId: formValues.id,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            stepId: formValues.id!,
             flowVersionId,
             output: stepResponse.output,
             queryClient,
@@ -104,7 +105,7 @@ const TestActionSection = React.memo(
 
     const handleTest = () => {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      stepTestOutputCache.resetExpandedForStep(formValues.id);
+      stepTestOutputCache.resetExpandedForStep(formValues.id!);
       if (
         selectedStep.type === ActionType.BLOCK &&
         selectedStepTemplateModel?.riskLevel === RiskLevel.HIGH
@@ -119,7 +120,8 @@ const TestActionSection = React.memo(
 
     const confirmRiskyStep = () => {
       setRiskyStepConfirmationMessage(null);
-      stepTestOutputCache.resetExpandedForStep(formValues.id);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      stepTestOutputCache.resetExpandedForStep(formValues.id!);
       mutate();
     };
 
