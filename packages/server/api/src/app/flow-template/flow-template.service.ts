@@ -82,9 +82,14 @@ export const flowTemplateService = {
     }
 
     if (queryParams.services) {
-      queryBuilder = queryBuilder.andWhere('services @> :services', {
-        services: JSON.stringify(queryParams.services),
-      });
+      queryBuilder = queryBuilder.andWhere(
+        new Brackets((qb) => {
+          queryParams.services?.forEach((service, index) => {
+            const paramName = `service_${index}`;
+            qb.andWhere(`services ? :${paramName}`, { [paramName]: service });
+          });
+        }),
+      );
     }
 
     if (queryParams.domains) {
