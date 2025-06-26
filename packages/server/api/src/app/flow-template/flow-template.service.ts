@@ -86,7 +86,7 @@ export const flowTemplateService = {
         new Brackets((qb) => {
           queryParams.services?.forEach((service, index) => {
             const paramName = `service_${index}`;
-            qb.andWhere(`services ? :${paramName}`, { [paramName]: service });
+            qb.orWhere(`services ? :${paramName}`, { [paramName]: service });
           });
         }),
       );
