@@ -148,6 +148,7 @@ export const flowVersionController: FastifyPluginAsyncTypebox = async (
         flowStepTestOutputs.map((flowStepTestOutput) => [
           flowStepTestOutput.stepId as OpenOpsId,
           {
+            input: flowStepTestOutput.input,
             output: flowStepTestOutput.output,
             lastTestDate: flowStepTestOutput.updated,
           },
