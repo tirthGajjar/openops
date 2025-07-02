@@ -7,18 +7,20 @@ import {
 } from '@openops/components/ui';
 import { CodeAction } from '@openops/shared';
 import { t } from 'i18next';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useFormContext } from 'react-hook-form';
 
+import { AIButton } from '../../block-properties/ai-button';
 import { DictionaryProperty } from '../../block-properties/dictionary-property';
 
+import { aiSettingsHooks } from '@/app/features/ai/lib/ai-settings-hooks';
+import { useAppStore } from '@/app/store/app-store';
+import { useSafeBuilderStateContext } from '../../builder-hooks';
 import { CodeEditior } from './code-editior';
 
 const markdown = `
 To use data from previous steps in your code, include them as pairs of keys and values below.
-
 You can access these inputs in your code using \`inputs.key\`, where \`key\` is the name you assigned below.
-
 **⚠️ Warning: "const code" is the entry to the code. If it is removed or renamed, your step will fail.**
 `;
 
@@ -28,9 +30,33 @@ type CodeSettingsProps = {
 
 const CodeSettings = React.memo(({ readonly }: CodeSettingsProps) => {
   const form = useFormContext<CodeAction>();
-  // const [setLeftSidebar] = useBuilderStateContext((state) => [
-  //   state.setLeftSidebar,
-  // ]);
+
+  const { setIsAiChatOpened } = useAppStore((s) => ({
+    setIsAiChatOpened: s.setIsAiChatOpened,
+  }));
+
+  const isAiChatVisible = useSafeBuilderStateContext(
+    (s) => s?.midpanelState?.showAiChat,
+  );
+
+  const { hasActiveAiSettings, isLoading } =
+    aiSettingsHooks.useHasActiveAiSettings();
+
+  const dispatch = useSafeBuilderStateContext(
+    (state) => state.applyMidpanelAction,
+  );
+
+  const onGenerateWithAIClick = useCallback(() => {
+    dispatch?.({
+      type: 'GENERATE_WITH_AI_CLICK',
+      property: {
+        supportsAI: true,
+        inputName: 'settings.sourceCode',
+        displayName: 'Source Code',
+      },
+    });
+    setIsAiChatOpened(false);
+  }, [dispatch, setIsAiChatOpened]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,6 +88,17 @@ const CodeSettings = React.memo(({ readonly }: CodeSettingsProps) => {
         name="settings.sourceCode"
         render={({ field }) => (
           <FormItem>
+            <div className="flex items-center justify-between mb-2">
+              <FormLabel>{t('Source Code')}</FormLabel>
+              {!readonly && (
+                <AIButton
+                  hasActiveAiSettings={hasActiveAiSettings}
+                  isLoading={isLoading}
+                  isAiChatVisible={!!isAiChatVisible}
+                  onGenerateWithAIClick={onGenerateWithAIClick}
+                />
+              )}
+            </div>
             <CodeEditior
               sourceCode={field.value}
               onChange={field.onChange}

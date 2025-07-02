@@ -2,7 +2,7 @@ import { QueryKeys } from '@/app/constants/query-keys';
 import { authenticationSession } from '@/app/lib/authentication-session';
 import { Message, useChat } from '@ai-sdk/react';
 import { toast } from '@openops/components/ui';
-import { flowHelper, FlowVersion } from '@openops/shared';
+import { ActionType, flowHelper, FlowVersion } from '@openops/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { nanoid } from 'nanoid';
@@ -36,13 +36,15 @@ export const useStepSettingsAiChat = (
       }
       return aiChatApi.open(
         flowVersion.flowId,
-        stepDetails?.settings?.blockName,
+        stepDetails?.settings?.blockName || stepDetails?.type,
         selectedStep,
-        stepDetails.settings.actionName,
+        stepDetails.settings.actionName || stepDetails?.type,
       );
     },
     enabled:
-      !!stepDetails?.settings?.blockName && !!stepDetails?.settings?.actionName,
+      (!!stepDetails?.settings?.blockName &&
+        !!stepDetails?.settings?.actionName) ||
+      stepDetails?.type === ActionType.CODE,
   });
 
   const {
