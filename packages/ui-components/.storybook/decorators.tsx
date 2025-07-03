@@ -32,21 +32,12 @@ export const ThemeSwitcherDecorator = ({
 };
 
 /**
- * Decorator that applies theme-aware styling based on Storybook's theme switcher
+ * Decorator that applies theme-aware styling by inheriting from parent theme class
  */
 export const ThemeAwareDecorator = (Story: any, context: any) => {
-  const theme = context.globals.theme;
-  const isDark = theme === ThemeSwitcherValue.DARK;
-
   return (
     <MemoryRouter>
-      <div
-        className={isDark ? 'dark p-32' : 'p-32'}
-        style={{
-          backgroundColor: isDark ? '#1f2937' : 'transparent',
-          borderRadius: '8px',
-        }}
-      >
+      <div className="p-32 dark:bg-gray-900 rounded-lg">
         <Story />
       </div>
     </MemoryRouter>
