@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { MemoryRouter } from 'react-router-dom';
 
+import { ThemeAwareDecorator } from '../../.storybook/decorators';
 import { GenerateWithAIButton } from '../components/generate-with-ai/generate-with-ai';
 
 /**
@@ -43,13 +43,7 @@ const meta = {
   parameters: {
     layout: 'centered',
   },
-  decorators: [
-    (Story) => (
-      <MemoryRouter>
-        <Story />
-      </MemoryRouter>
-    ),
-  ],
+  decorators: [ThemeAwareDecorator],
   args: {
     hasActiveAiSettings: true,
     isLoading: false,

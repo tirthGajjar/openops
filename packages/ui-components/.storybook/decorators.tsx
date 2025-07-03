@@ -1,4 +1,5 @@
 import isChromatic from 'chromatic/isChromatic';
+import { MemoryRouter } from 'react-router-dom';
 import '../src/styles/global.css';
 import '../src/tailwind.css';
 import { ThemeSwitcherValue } from './preview';
@@ -27,5 +28,27 @@ export const ThemeSwitcherDecorator = ({
       {lightContainer}
       {darkContainer}
     </div>
+  );
+};
+
+/**
+ * Decorator that applies theme-aware styling based on Storybook's theme switcher
+ */
+export const ThemeAwareDecorator = (Story: any, context: any) => {
+  const theme = context.globals.theme;
+  const isDark = theme === ThemeSwitcherValue.DARK;
+
+  return (
+    <MemoryRouter>
+      <div
+        className={isDark ? 'dark p-32' : 'p-32'}
+        style={{
+          backgroundColor: isDark ? '#1f2937' : 'transparent',
+          borderRadius: '8px',
+        }}
+      >
+        <Story />
+      </div>
+    </MemoryRouter>
   );
 };
