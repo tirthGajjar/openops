@@ -4,8 +4,6 @@ import {
 } from '@fastify/type-provider-typebox';
 import {
   GetRunForWorkerRequest,
-  JobStatus,
-  QueueName,
   SharedSystemProp,
   system,
   UpdateFailureCountRequest,
@@ -88,6 +86,7 @@ export const flowEngineWorker: FastifyPluginAsyncTypebox = async (app) => {
       assertNotNullOrUndefined(enginePrincipal.queueToken, 'queueToken');
       const { id } = request.principal;
       const { queueName, status, message } = request.body;
+
       await flowConsumer.update({
         executionCorrelationId: id,
         queueName,
