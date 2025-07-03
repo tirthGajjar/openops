@@ -47,7 +47,9 @@ export type MidpanelAction =
   | { type: 'PANEL_CLICK_AWAY' }
   | {
       type: 'GENERATE_WITH_AI_CLICK';
-      property?: BlockProperty & { inputName: `settings.input.${string}` };
+      property?: BlockProperty & {
+        inputName: `settings.input.${string}` | `settings.${string}`;
+      };
     }
   | { type: 'ADD_CODE_TO_INJECT'; code: string }
   | { type: 'CLEAN_CODE_TO_INJECT' };
