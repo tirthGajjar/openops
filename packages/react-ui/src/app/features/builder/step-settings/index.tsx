@@ -140,12 +140,24 @@ const StepSettingsContainer = React.memo(() => {
 
   useEffect(() => {
     if (midpanelState.codeToInject && midpanelState.aiChatProperty?.inputName) {
-      form.setValue(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        midpanelState.aiChatProperty!.inputName,
-        midpanelState.codeToInject,
-        { shouldValidate: true },
-      );
+      if (midpanelState.aiChatProperty?.inputName === 'settings.sourceCode') {
+        form.setValue(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          midpanelState.aiChatProperty!.inputName,
+          {
+            code: midpanelState.codeToInject,
+            packageJson: '{}',
+          },
+          { shouldValidate: true },
+        );
+      } else {
+        form.setValue(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          midpanelState.aiChatProperty!.inputName,
+          midpanelState.codeToInject,
+          { shouldValidate: true },
+        );
+      }
 
       applyMidpanelAction({ type: 'CLEAN_CODE_TO_INJECT' });
       form.trigger();
