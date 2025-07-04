@@ -14,8 +14,8 @@ const markdown = `
 To obtain your API key, follow these steps:
 
 1. Go to settings by clicking your profile-pic (top-left)
-2. Go to API section inside My Account.
-3. On Personal API keys, give label and press create key.`;
+2. Click on the Security & access section in the left pane.
+3. In Personal API keys section, click on the New API key to create a key.`;
 
 export const linearAuth = BlockAuth.SecretAuth({
   authProviderKey: 'Linear',
@@ -42,7 +42,7 @@ export const linear = createBlock({
 
   auth: linearAuth,
   minimumSupportedRelease: '0.30.0',
-  logoUrl: 'https://cdn.openops.com/blocks/linear.png',
+  logoUrl: `https://static.openops.com/blocks/linear.png`,
   authors: ['lldiegon', 'kishanprmr', 'abuaboud'],
   categories: [BlockCategory.COLLABORATION],
   actions: [
