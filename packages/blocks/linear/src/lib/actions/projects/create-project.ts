@@ -17,15 +17,15 @@ export const linearCreateProject = createAction({
     }),
     description: Property.LongText({
       displayName: 'Description',
-      required: false,
+      required: true,
     }),
     icon: Property.ShortText({
       displayName: 'Icon',
       required: false,
     }),
     color: Property.ShortText({
-      displayName: 'Color',
-      required: false,
+      displayName: 'Color (HEX)',
+      required: true,
     }),
     startDate: Property.DateTime({
       displayName: 'Start Date',
