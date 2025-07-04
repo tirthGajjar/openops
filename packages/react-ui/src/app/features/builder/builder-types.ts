@@ -30,7 +30,7 @@ export type MidpanelState = {
   showAiChat: boolean;
   aiContainerSize: AiCliChatContainerSizeState;
   aiChatProperty?: BlockProperty & {
-    inputName: `settings.input.${string}`;
+    inputName: `settings.input.${string}` | `settings.${string}`;
   };
   codeToInject?: string;
 };
