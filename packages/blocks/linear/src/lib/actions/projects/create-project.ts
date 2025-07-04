@@ -1,8 +1,8 @@
+import { LinearDocument } from '@linear/sdk';
 import { createAction, Property } from '@openops/blocks-framework';
 import { linearAuth } from '../../..';
-import { props } from '../../common/props';
 import { makeClient } from '../../common/client';
-import { LinearDocument } from '@linear/sdk';
+import { props } from '../../common/props';
 
 export const linearCreateProject = createAction({
   auth: linearAuth,
@@ -57,7 +57,7 @@ export const linearCreateProject = createAction({
         project: createdProject,
       };
     } else {
-      throw new Error(`Unexpected error: ${result}`)
+      throw new Error(`Unexpected error: ${result}`);
     }
   },
 });

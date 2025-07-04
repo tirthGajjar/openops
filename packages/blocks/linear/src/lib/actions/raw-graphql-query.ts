@@ -15,7 +15,7 @@ export const linearRawGraphqlQuery = createAction({
     const client = makeClient(auth as string);
     const result = await client.rawRequest(
       propsValue.query,
-      propsValue.variables
+      propsValue.variables,
     );
     return result;
   },

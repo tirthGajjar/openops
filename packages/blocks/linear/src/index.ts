@@ -1,4 +1,4 @@
-import { createBlock, BlockAuth } from '@openops/blocks-framework';
+import { BlockAuth, createBlock } from '@openops/blocks-framework';
 import { BlockCategory } from '@openops/shared';
 import { linearCreateComment } from './lib/actions/comments/create-comment';
 import { linearCreateIssue } from './lib/actions/issues/create-issue';
@@ -7,8 +7,8 @@ import { linearCreateProject } from './lib/actions/projects/create-project';
 import { linearUpdateProject } from './lib/actions/projects/update-project';
 import { linearRawGraphqlQuery } from './lib/actions/raw-graphql-query';
 import { linearNewIssue } from './lib/triggers/new-issue';
-import { linearUpdatedIssue } from './lib/triggers/updated-issue';
 import { linearRemovedIssue } from './lib/triggers/removed-issue';
+import { linearUpdatedIssue } from './lib/triggers/updated-issue';
 
 const markdown = `
 To obtain your API key, follow these steps:

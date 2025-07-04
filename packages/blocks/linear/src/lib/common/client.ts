@@ -9,7 +9,7 @@ export class LinearClientWrapper {
     return this.client.createIssue(input);
   }
   async listIssueStates(
-    variables: LinearDocument.WorkflowStatesQueryVariables
+    variables: LinearDocument.WorkflowStatesQueryVariables,
   ) {
     return this.client.workflowStates(variables);
   }
@@ -39,7 +39,7 @@ export class LinearClientWrapper {
   }
   async updateProject(
     projectId: string,
-    input: LinearDocument.ProjectUpdateInput
+    input: LinearDocument.ProjectUpdateInput,
   ) {
     return this.client.updateProject(projectId, input);
   }
@@ -57,7 +57,7 @@ export class LinearClientWrapper {
   }
   async listTeamsTemplates(
     teamId: string,
-    variables: Omit<LinearDocument.Team_TemplatesQueryVariables, 'id'>
+    variables: Omit<LinearDocument.Team_TemplatesQueryVariables, 'id'>,
   ) {
     const team = await this.client.team(teamId);
     return team.templates(variables);

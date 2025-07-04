@@ -1,6 +1,6 @@
+import { LinearDocument } from '@linear/sdk';
 import { DropdownOption, Property } from '@openops/blocks-framework';
 import { makeClient } from './client';
-import { LinearDocument } from '@linear/sdk';
 
 export const props = {
   team_id: (required = true) =>
@@ -314,7 +314,7 @@ export const props = {
           };
           const templatesConnection = await client.listTeamsTemplates(
             team_id as string,
-            filter
+            filter,
           );
 
           const templates = await templatesConnection.nodes;
