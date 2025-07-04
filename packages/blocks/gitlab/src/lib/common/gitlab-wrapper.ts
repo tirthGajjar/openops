@@ -56,6 +56,21 @@ export async function updateFile(
   );
 }
 
+export async function createFile(
+  projectId: string,
+  filePath: string,
+  content: string,
+  commitMessage: string,
+  branch: string,
+  authProp: string,
+  gitlabUrl?: string,
+): Promise<GitlabApi.GitlabFileAction> {
+  return await errorHandling<GitlabApi.GitlabFileAction>(
+    () => GitlabApi.createFile(projectId, filePath, content, commitMessage, branch, authProp, gitlabUrl),
+    'An error occurred while creating the file in the repository.',
+  );
+}
+
 export async function createMergeRequest(
   projectId: string,
   sourceBranch: string,
