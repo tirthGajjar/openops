@@ -108,6 +108,7 @@ jobs:
           echo "### Release $VERSION was created! 🎉" >> $GITHUB_STEP_SUMMARY
           echo "The release was created as a draft." >> $GITHUB_STEP_SUMMARY
           echo "Please [review and publish it](${RELEASE_URL/\/tags\//\/edit\/})." >> $GITHUB_STEP_SUMMARY
+          echo "❗ Release [checklist](https://openops.atlassian.net/wiki/spaces/SD/pages/276987906/Release+checklist)"
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4.2.1
         with:
