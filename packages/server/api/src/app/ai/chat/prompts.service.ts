@@ -8,11 +8,13 @@ export const getMcpSystemPrompt = async ({
   isTablesLoaded,
   isOpenOpsMCPEnabled,
   isAwsCostMcpDisabled,
+  isCostOptimizationEnabled,
 }: {
   isAnalyticsLoaded: boolean;
   isTablesLoaded: boolean;
   isOpenOpsMCPEnabled: boolean;
   isAwsCostMcpDisabled: boolean;
+  isCostOptimizationEnabled?: boolean;
 }): Promise<string> => {
   const prompts = [loadPrompt('mcp.txt')];
 
@@ -26,6 +28,10 @@ export const getMcpSystemPrompt = async ({
 
   if (isOpenOpsMCPEnabled) {
     prompts.push(loadPrompt('mcp-openops.txt'));
+  }
+
+  if (isCostOptimizationEnabled) {
+    prompts.push(loadPrompt('mcp-cost-optimization.txt'));
   }
 
   if (isAwsCostMcpDisabled) {

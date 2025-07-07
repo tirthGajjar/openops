@@ -114,11 +114,17 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
       projectId,
     );
 
+    const isCostOptimizationContext = messages.some(msg => 
+      msg.content && typeof msg.content === 'string' && 
+      /cost.*optim|optim.*cost|cost.*reduc|reduc.*cost|cost.*sav|sav.*cost/i.test(msg.content)
+    );
+
     const filteredTools = await selectRelevantTools({
       messages,
       tools,
       languageModel,
       aiConfig,
+      context: { isCostOptimization: isCostOptimizationContext },
     });
 
     const isAwsCostMcpDisabled =
@@ -128,12 +134,14 @@ export const aiMCPChatController: FastifyPluginAsyncTypebox = async (app) => {
     const isAnalyticsLoaded = hasToolProvider(filteredTools, 'superset');
     const isTablesLoaded = hasToolProvider(filteredTools, 'tables');
     const isOpenOpsMCPEnabled = hasToolProvider(filteredTools, 'openops');
+    const isCostOptimizationEnabled = hasToolProvider(filteredTools, 'cost-optimization');
 
     const systemPrompt = await getMcpSystemPrompt({
       isAnalyticsLoaded,
       isTablesLoaded,
       isOpenOpsMCPEnabled,
       isAwsCostMcpDisabled,
+      isCostOptimizationEnabled,
     });
 
     pipeDataStreamToResponse(reply.raw, {

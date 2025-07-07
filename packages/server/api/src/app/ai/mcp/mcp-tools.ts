@@ -2,6 +2,7 @@ import { AppSystemProp, logger, system } from '@openops/server-shared';
 import { ToolSet } from 'ai';
 import { FastifyInstance } from 'fastify';
 import { getCostTools } from './cost-tools';
+import { getCostOptimizationTools } from './cost-optimization-tools';
 import { getDocsTools } from './docs-tools';
 import { getOpenOpsTools } from './openops-tools';
 import { getSupersetTools } from './superset-tools';
@@ -36,6 +37,10 @@ export const getMCPTools = async (
     toolSet: costAnalysis.toolSet,
   };
 
+  const costOptimizationTools = await safeGetTools('cost-optimization', () =>
+    getCostOptimizationTools(projectId, costExplorer.toolSet, costAnalysis.toolSet)
+  );
+
   const loadExperimentalTools = system.getBoolean(
     AppSystemProp.LOAD_EXPERIMENTAL_MCP_TOOLS,
   );
@@ -56,6 +61,7 @@ export const getMCPTools = async (
     ...openopsTools.toolSet,
     ...costExplorerTools.toolSet,
     ...costAnalysisTools.toolSet,
+    ...costOptimizationTools.toolSet,
   } as ToolSet;
 
   return {
@@ -66,6 +72,7 @@ export const getMCPTools = async (
       openopsTools.client,
       costExplorerTools.client,
       costAnalysisTools.client,
+      costOptimizationTools.client,
     ],
     tools: toolSet,
   };

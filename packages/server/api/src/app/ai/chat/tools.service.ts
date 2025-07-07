@@ -7,11 +7,17 @@ const MAX_SELECTED_TOOLS = 128;
 
 const getSystemPrompt = (
   toolList: Array<{ name: string; description: string }>,
+  context?: { isCostOptimization?: boolean }
 ): string => {
   const toolsMessage = toolList
     .map((t) => `- ${t.name}: ${t.description}`)
     .join('\n');
-  return `Given the following conversation history and the list of available tools, select the tools that are most relevant to answer the user's request. Return an array of tool names.\n\nTools:\n${toolsMessage}.`;
+  
+  const contextPrompt = context?.isCostOptimization 
+    ? '\n\nPrioritize cost-related tools (cost-explorer, cost-analysis, cost-optimization) and AWS resource management tools (EC2, EBS, RDS) for cost optimization scenarios.'
+    : '';
+    
+  return `Given the following conversation history and the list of available tools, select the tools that are most relevant to answer the user's request. Return an array of tool names.\n\nTools:\n${toolsMessage}.${contextPrompt}`;
 };
 
 export async function selectRelevantTools({
@@ -19,11 +25,13 @@ export async function selectRelevantTools({
   tools,
   languageModel,
   aiConfig,
+  context,
 }: {
   messages: CoreMessage[];
   tools: ToolSet;
   languageModel: LanguageModel;
   aiConfig: AiConfig;
+  context?: { isCostOptimization?: boolean };
 }): Promise<ToolSet | undefined> {
   if (!tools || Object.keys(tools).length === 0) {
     return undefined;
@@ -40,7 +48,7 @@ export async function selectRelevantTools({
       schema: z.object({
         tool_names: z.array(z.string()),
       }),
-      system: getSystemPrompt(toolList),
+      system: getSystemPrompt(toolList, context),
       messages,
       ...aiConfig.modelSettings,
     });
